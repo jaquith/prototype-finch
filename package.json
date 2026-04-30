@@ -17,7 +17,7 @@
     "styled-components": ">=5.2.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "isolated-vm"]
+    "onlyBuiltDependencies": ["esbuild"]
   },
   "devDependencies": {
     "@types/react": "^18.2.21",
