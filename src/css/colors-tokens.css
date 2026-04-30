@@ -1,0 +1,202 @@
+/* Design System Color Tokens */
+:root {
+  /* Red */
+  --red-900: #4d292c;
+  --red-800: #7d4247;
+  --red-700: #9e4c4c;
+  --red-600: #be5252;
+  --red-500: #d55c50;
+  --red-400: #e36d5a;
+  --red-300: #f07e63;
+  --red-200: #fd916d;
+  --red-100: #ffaa80;
+  --red-50: #ffc7a8;
+  --red-25: #ffefe0;
+
+  /* Orange */
+  --orange-900: #3b220c;
+  --orange-800: #633616;
+  --orange-700: #7d441b;
+  --orange-600: #b05f19;
+  --orange-500: #d77d0f;
+  --orange-400: #f29100;
+  --orange-300: #faa52d;
+  --orange-200: #fec068;
+  --orange-100: #ffda9e;
+  --orange-50: #fde7c3;
+  --orange-25: #fff5e5;
+
+  /* Yellow */
+  --yellow-900: #332705;
+  --yellow-800: #4b3919;
+  --yellow-700: #614921;
+  --yellow-600: #c78e26;
+  --yellow-500: #ebb000;
+  --yellow-400: #f2c009;
+  --yellow-300: #fcd514;
+  --yellow-200: #ffe666;
+  --yellow-100: #fff7a8;
+  --yellow-50: #fffcd4;
+  --yellow-25: #fffeeb;
+
+  /* Green */
+  --green-900: #18300b;
+  --green-800: #174d2d;
+  --green-700: #1d5f3a;
+  --green-600: #267a4d;
+  --green-500: #2e9766;
+  --green-400: #34aa76;
+  --green-300: #3abd86;
+  --green-200: #5fcb9c;
+  --green-100: #81dab1;
+  --green-50: #a5e4c6;
+  --green-25: #e7f8ef;
+
+  /* Mint */
+  --mint-900: #0f331e;
+  --mint-800: #0e4e4a;
+  --mint-700: #0b6662;
+  --mint-600: #0b7d77;
+  --mint-500: #129791;
+  --mint-400: #1da59e;
+  --mint-300: #20b2aa;
+  --mint-200: #3bbfb9;
+  --mint-100: #69d1cd;
+  --mint-50: #a1e3e0;
+  --mint-25: #e6faf9;
+
+  /* Aqua */
+  --aqua-900: #093331;
+  --aqua-800: #1a4452;
+  --aqua-700: #1f5b6e;
+  --aqua-600: #22718a;
+  --aqua-500: #2287a6;
+  --aqua-400: #219cc2;
+  --aqua-300: #1eb1df;
+  --aqua-200: #4fc0e3;
+  --aqua-100: #7ed2ec;
+  --aqua-50: #b3ecf3;
+  --aqua-25: #e8f9fc;
+
+  /* Sky */
+  --sky-900: #122f38;
+  --sky-800: #1a3a5d;
+  --sky-700: #194e80;
+  --sky-600: #1362a2;
+  --sky-500: #007cc2;
+  --sky-400: #218bd1;
+  --sky-300: #47a4e6;
+  --sky-200: #6dbdf2;
+  --sky-100: #97d2f7;
+  --sky-50: #ccebff;
+  --sky-25: #ebf7fc;
+
+  /* Blue */
+  --blue-900: #142142;
+  --blue-800: #1c2d5b;
+  --blue-700: #304181;
+  --blue-600: #007cc2; /* Updated Blue 600 to match Figma design system */
+  --blue-500: #3c5cd1;
+  --blue-400: #5574e5;
+  --blue-300: #668af4;
+  --blue-200: #869ff3;
+  --blue-100: #9fb6fc;
+  --blue-50: #c9d7ff;
+  --blue-25: #edf2ff;
+
+  /* Indigo */
+  --indigo-900: #1f1d38;
+  --indigo-800: #2e2b52;
+  --indigo-700: #454084;
+  --indigo-600: #544dae;
+  --indigo-500: #5a52c3;
+  --indigo-400: #655dd9;
+  --indigo-300: #766edf;
+  --indigo-200: #8d86e6;
+  --indigo-100: #a59fec;
+  --indigo-50: #cac7f0;
+  --indigo-25: #eeedfa;
+
+  /* Purple */
+  --purple-900: #302138;
+  --purple-800: #473052;
+  --purple-700: #5f426e;
+  --purple-600: #77538a;
+  --purple-500: #9167a6;
+  --purple-400: #a66bc3;
+  --purple-300: #b580d1;
+  --purple-200: #c499db;
+  --purple-100: #d4b4e6;
+  --purple-50: #e5d1f0;
+  --purple-25: #f3e8fa;
+
+  /* Violet */
+  --violet-900: #381c2a;
+  --violet-800: #52293d;
+  --violet-700: #713754;
+  --violet-600: #91446b;
+  --violet-500: #b15181;
+  --violet-400: #d15e98;
+  --violet-300: #d8749f;
+  --violet-200: #e087ac;
+  --violet-100: #e69eb7;
+  --violet-50: #f0c3d0;
+  --violet-25: #faebee;
+
+  /* Pink */
+  --pink-900: #320101;
+  --pink-800: #5e2323;
+  --pink-700: #772c2c;
+  --pink-600: #94333b;
+  --pink-500: #af323c;
+  --pink-400: #ce3845;
+  --pink-300: #db5560;
+  --pink-200: #ed7b85;
+  --pink-100: #fcaaa9;
+  --pink-50: #ffcfcf;
+  --pink-25: #fce6e5;
+
+  /* Coral */
+  --coral-900: #4d292c;
+  --coral-800: #7d4247;
+  --coral-700: #9e4c4c;
+  --coral-600: #be5252;
+  --coral-500: #d55c50;
+  --coral-400: #e36d5a;
+  --coral-300: #f07e63;
+  --coral-200: #fd916d;
+  --coral-100: #ffaa80;
+  --coral-50: #ffc7a8;
+  --coral-25: #ffefe0;
+
+  /* Neutral/Gray tokens */
+  --white: #ffffff;
+  --gray-50: #faf5f6;
+  --gray-100: #f4f8fc;
+  --gray-200: #edf2f7;
+  --gray-300: #e4e5e6;
+  --gray-400: #d4d6d9;
+  --gray-500: #c4c4c4;
+  --gray-600: #a8a8a8;
+  --gray-700: #8a8a8a;
+  --gray-800: #6a6a6a;
+  --gray-900: #303b4c;
+  --black: #000000;
+
+  /* Semantic color tokens */
+  --primary: var(--blue-600);
+  --primary-hover: var(--blue-700);
+  --primary-light: var(--blue-25);
+  --secondary: var(--white);
+  --secondary-border: var(--blue-600);
+  --secondary-hover: var(--blue-25);
+  --cta: var(--orange-300);
+  --cta-hover: var(--orange-600);
+  --cta-focus: var(--orange-200);
+  --destructive: var(--pink-400);
+  --destructive-hover: var(--pink-600);
+  --destructive-focus: var(--pink-200);
+  --disabled-bg: var(--gray-400);
+  --disabled-text: var(--gray-500);
+  --focus-ring: var(--blue-300);
+}

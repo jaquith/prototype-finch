@@ -1,0 +1,118 @@
+:root {
+  font-family: var(--font-family, system-ui, Avenir, Helvetica, Arial, sans-serif);
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  color: var(--gray-900);
+  background-color: var(--white);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* SimpleSwitch */
+.simple-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.simple-switch-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.simple-switch-track {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--gray-400, #d4d6d9);
+  position: relative;
+  transition: background 0.2s;
+  display: inline-block;
+}
+
+.simple-switch-track.on {
+  background: #2e7d32;
+}
+
+.simple-switch-track.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.simple-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.2s;
+}
+
+.simple-switch-track.on .simple-switch-thumb {
+  transform: translateX(16px);
+}
+
+.simple-switch-input:focus-visible + .simple-switch-track {
+  box-shadow: 0 0 0 2px var(--blue-300, #7fc4ed);
+}
+
+/* SimpleTooltip */
+.simple-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.simple-tooltip-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  padding: 6px 10px;
+  border-radius: 4px;
+  white-space: normal;
+  max-width: 260px;
+  width: max-content;
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
