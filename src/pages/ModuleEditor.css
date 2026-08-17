@@ -352,6 +352,41 @@
   line-height: 1.5;
 }
 
+/* Error-handling behavior note in the Extension Code section */
+.editor-code-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: #f0f6fc;
+  border: 1px solid #cfe2f3;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #2c4a63;
+}
+
+.editor-code-note > i {
+  margin-top: 2px;
+  color: #3d7ab5;
+  flex-shrink: 0;
+}
+
+.editor-code-note-text strong {
+  font-weight: 600;
+  color: #1e3a52;
+}
+
+.editor-code-note code {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #dbe9f5;
+  color: #1e3a52;
+}
+
 /* Fields */
 .editor-field {
   margin-bottom: 16px;
@@ -1672,6 +1707,31 @@
 .test-case-error pre {
   margin: 0;
   white-space: pre-wrap;
+}
+
+.test-case-error-note {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #fecaca;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 11px;
+  line-height: 1.5;
+  color: #9a5a2a;
+  display: flex;
+  gap: 6px;
+}
+
+.test-case-error-note i {
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.test-case-error-note code {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: rgba(154, 90, 42, 0.12);
 }
 
 /* Failed test left border accent */

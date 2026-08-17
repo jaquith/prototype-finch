@@ -118,7 +118,19 @@ const CODE_BODY_RECENCY = `  // Compute recency-frequency score
   output.rfScore = Math.round((recency * 0.6 + frequency * 0.4) * 100);
 `;
 
-const DEFAULT_NEW_CODE_BODY = `  // Your extension logic here\n`;
+const DEFAULT_NEW_CODE_BODY = `  // Your extension logic here.
+  //
+  // Throwing an error stops all processing for this event:
+  //   if (!attributes.email) throw new Error("email is required");
+  //
+  // To keep processing, catch the error and report it instead —
+  // reportError() logs the failure but does NOT stop the event:
+  //   try {
+  //     // risky logic
+  //   } catch (e) {
+  //     reportError(e.message);
+  //   }
+`;
 
 const TEST_PLACEHOLDER = `// Write tests for your extension code.
 // Available helpers:
@@ -937,7 +949,7 @@ expect(result.masterTally.hats).toBe(3);`,
       return { text: "No failing tests at the moment. Run your tests first to see if anything fails." };
     }
     if (lower.includes("error") || lower.includes("try") || lower.includes("catch")) {
-      return { text: "Here's a try/catch wrapper you could add to your code:\n\n```\ntry {\n  // your logic here\n} catch (e) {\n  output.error = e.message;\n}\n```\n\nThis catches runtime errors and writes the message to an `error` output variable." };
+      return { text: "Remember: an uncaught `throw` stops all processing for the event. To handle failures gracefully, wrap risky logic in try/catch and report the caught error instead:\n\n```\ntry {\n  // your logic here\n} catch (e) {\n  reportError(e.message);\n}\n```\n\n`reportError()` logs the failure but lets processing continue, so you decide how to handle it." };
     }
     if (lower.includes("cap") || lower.includes("max") || lower.includes("limit")) {
       return { text: "To cap the score at 100, add this before setting the output:\n\n```\nconst capped = Math.min(score, 100);\noutput.score = capped;\n```" };
@@ -1769,7 +1781,17 @@ expect(result.masterTally.hats).toBe(3);`,
             <span className="editor-code-line-count">{fullCode.split("\n").length} lines</span>
           </div>
         </div>
-        {!collapsed.code && <div className="editor-code-wrapper">
+        {!collapsed.code && <>
+        <div className="editor-code-note">
+          <i className="fas fa-info-circle" aria-hidden="true" />
+          <div className="editor-code-note-text">
+            <strong>Throwing an error stops all processing for this event.</strong> To handle
+            failures your own way, wrap risky logic in a <code>try / catch</code> block and call{" "}
+            <code>reportError()</code> &mdash; caught errors are logged for you but processing
+            continues, so you decide how each failure is handled.
+          </div>
+        </div>
+        <div className="editor-code-wrapper">
           <div className="editor-code-lines" aria-hidden="true">
             {fullCode.split("\n").map((_, i) => (
               <span key={i}>{i + 1}</span>
@@ -1797,7 +1819,8 @@ expect(result.masterTally.hats).toBe(3);`,
               spellCheck={false}
             />
           </div>
-        </div>}
+        </div>
+        </>}
       </section>
 
       {/* Test Explorer — stays interactive even for locked marketplace capsules
@@ -2028,6 +2051,14 @@ expect(result.masterTally.hats).toBe(3);`,
                                 <i className="fas fa-exclamation-triangle" aria-hidden="true" /> Error Output
                               </div>
                               <pre>{tc.error}</pre>
+                              <div className="test-case-error-note">
+                                <i className="fas fa-info-circle" aria-hidden="true" />
+                                <span>
+                                  An uncaught error like this halts processing for the event. To
+                                  keep processing, wrap the risky logic in <code>try / catch</code>{" "}
+                                  and call <code>reportError()</code> to log it instead.
+                                </span>
+                              </div>
                             </div>
                           )}
                         </div>
