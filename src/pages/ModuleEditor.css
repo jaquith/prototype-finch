@@ -1355,6 +1355,51 @@
   color: var(--gray-500, #c4c4c4);
 }
 
+/* Locked-capsule note above the test list */
+.test-locked-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: var(--gray-100, #f4f8fc);
+  border: 1px solid var(--gray-200, #edf2f7);
+  font-size: 12px;
+  color: var(--gray-800, #6a6a6a);
+}
+
+.test-locked-note i {
+  color: var(--gray-600, #a8a8a8);
+}
+
+/* Ownership tags on suites and tests */
+.test-owner-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.test-owner-tag i {
+  font-size: 9px;
+}
+
+.test-owner-tag-publisher {
+  background: var(--gray-200, #edf2f7);
+  color: var(--gray-700, #8a8a8a);
+}
+
+.test-owner-tag-customer {
+  background: #edf2ff;
+  color: var(--primary, #007cc2);
+}
+
 .test-suite-add-btn,
 .test-suite-delete-btn {
   background: none;

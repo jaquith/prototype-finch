@@ -170,6 +170,10 @@ interface TestCase {
   duration: number;
   error?: string;
   code: string;
+  // "publisher" tests ship with a marketplace capsule and are read-only while
+  // the capsule is locked. "customer" tests are added by the user and always
+  // remain editable. Undefined = author-owned (normal extension).
+  owner?: "publisher" | "customer";
 }
 
 const TYPE_BADGE_MAP: Record<string, "neutral" | "informative" | "success" | "warn"> = {
@@ -718,7 +722,39 @@ expect(result.masterTally.hats).toBe(3);`,
     },
   ];
 
-  const initialTests: TestCase[] = isNew ? [] : isNormalize ? testsNormalize : isTally ? testsTally : isNormalizeStrings ? testsNormalizeStrings : testsEngagement;
+  // Marketplace capsules ship with publisher-authored tests that are read-only
+  // while the capsule is locked. Derive a small, realistic suite from the
+  // capsule's declared output parameter.
+  const marketplacePublisherTests: TestCase[] = catalogItem
+    ? (() => {
+        const outVar =
+          catalogItem.params.find((p) => p.direction === "output")?.variableName || "output";
+        return [
+          {
+            id: "pub-1",
+            suite: "Publisher Tests",
+            name: "produces the expected output for a typical input",
+            status: "idle" as const,
+            duration: 0,
+            owner: "publisher" as const,
+            code: `const result = runExtension(mockAttributes({\n  // representative input from the publisher fixtures\n}));\nexpect(result["${outVar}"]).toBeDefined();`,
+          },
+          {
+            id: "pub-2",
+            suite: "Publisher Tests",
+            name: "handles missing attributes gracefully",
+            status: "idle" as const,
+            duration: 0,
+            owner: "publisher" as const,
+            code: `const result = runExtension(mockAttributes({}));\nexpect(result["${outVar}"]).not.toThrow;`,
+          },
+        ];
+      })()
+    : [];
+
+  const initialTests: TestCase[] = catalogItem
+    ? marketplacePublisherTests
+    : isNew ? [] : isNormalize ? testsNormalize : isTally ? testsTally : isNormalizeStrings ? testsNormalizeStrings : testsEngagement;
 
   const [testCases, setTestCases] = useState<TestCase[]>(initialTests);
   const [testStatus, setTestStatus] = useState<"idle" | "running" | "done">("idle");
@@ -736,12 +772,18 @@ expect(result.masterTally.hats).toBe(3);`,
     });
   };
 
+  // Tests added while a marketplace capsule is locked belong to the customer.
+  const newTestOwner: TestCase["owner"] = catalogItem ? "customer" : undefined;
+  // A test is read-only when the capsule is locked and the test came from the
+  // publisher. Customer tests stay editable even while locked.
+  const isTestReadOnly = (t: TestCase) => locked && t.owner === "publisher";
+
   const updateTestCode = (id: string, newCode: string) => {
-    setTestCases((prev) => prev.map((t) => t.id === id ? { ...t, code: newCode } : t));
+    setTestCases((prev) => prev.map((t) => (t.id === id && !isTestReadOnly(t)) ? { ...t, code: newCode } : t));
   };
 
   const updateTestName = (id: string, newName: string) => {
-    setTestCases((prev) => prev.map((t) => t.id === id ? { ...t, name: newName } : t));
+    setTestCases((prev) => prev.map((t) => (t.id === id && !isTestReadOnly(t)) ? { ...t, name: newName } : t));
   };
 
   const handleAddTest = (suite?: string) => {
@@ -752,6 +794,7 @@ expect(result.masterTally.hats).toBe(3);`,
       name: "new test",
       status: "idle",
       duration: 0,
+      owner: newTestOwner,
       code: `const result = runExtension(mockAttributes({\n  // set up your test attributes here\n}));\nexpect(result["engagement_score"]).toBe(0);`,
     };
     setTestCases((prev) => [...prev, newTest]);
@@ -759,19 +802,21 @@ expect(result.masterTally.hats).toBe(3);`,
   };
 
   const handleDeleteTest = (id: string) => {
-    setTestCases((prev) => prev.filter((t) => t.id !== id));
+    // Keep the test if it isn't the target, or if it's a locked publisher test.
+    setTestCases((prev) => prev.filter((t) => t.id !== id || isTestReadOnly(t)));
     setExpandedTests((prev) => { const next = new Set(prev); next.delete(id); return next; });
   };
 
   const handleAddSuite = () => {
     const newId = `t${Date.now()}`;
-    const suiteName = `New Suite ${suiteNames.length + 1}`;
+    const suiteName = catalogItem ? `Your Tests ${suiteNames.filter((s) => s.startsWith("Your Tests")).length + 1}` : `New Suite ${suiteNames.length + 1}`;
     const newTest: TestCase = {
       id: newId,
       suite: suiteName,
       name: "new test",
       status: "idle",
       duration: 0,
+      owner: newTestOwner,
       code: `const result = runExtension(mockAttributes({\n  // set up your test attributes here\n}));\nexpect(result["engagement_score"]).toBe(0);`,
     };
     setTestCases((prev) => [...prev, newTest]);
@@ -780,15 +825,22 @@ expect(result.masterTally.hats).toBe(3);`,
 
   const handleRenameSuite = (oldName: string, newName: string) => {
     if (!newName.trim() || newName === oldName) return;
+    // Don't allow renaming a suite that contains publisher tests while locked.
+    if (locked && testCases.some((t) => t.suite === oldName && t.owner === "publisher")) return;
     setTestCases((prev) => prev.map((t) => t.suite === oldName ? { ...t, suite: newName } : t));
   };
 
   const handleDeleteSuite = (suiteName: string) => {
-    setTestCases((prev) => prev.filter((t) => t.suite !== suiteName));
+    // Only remove customer-owned tests when locked; never publisher tests.
+    if (locked) {
+      setTestCases((prev) => prev.filter((t) => !(t.suite === suiteName && t.owner !== "publisher")));
+    } else {
+      setTestCases((prev) => prev.filter((t) => t.suite !== suiteName));
+    }
   };
 
   const handleMoveTest = (testId: string, targetSuite: string) => {
-    setTestCases((prev) => prev.map((t) => t.id === testId ? { ...t, suite: targetSuite } : t));
+    setTestCases((prev) => prev.map((t) => (t.id === testId && !isTestReadOnly(t)) ? { ...t, suite: targetSuite } : t));
   };
 
   const isEngagement = !isNew && !isNormalize && !isTally && !isNormalizeStrings && !isRecency;
@@ -895,7 +947,7 @@ expect(result.masterTally.hats).toBe(3);`,
     if (!accepted) return;
     if (action.type === "add-test") {
       const newId = `t${Date.now()}`;
-      setTestCases((prev) => [...prev, { id: newId, suite: suiteNames[0] || "New Suite", name: action.label.replace("Add test: ", ""), status: "idle" as const, duration: 0, code: action.detail }]);
+      setTestCases((prev) => [...prev, { id: newId, suite: suiteNames[0] || "New Suite", name: action.label.replace("Add test: ", ""), status: "idle" as const, duration: 0, owner: newTestOwner, code: action.detail }]);
       setExpandedTests((prev) => new Set([...prev, newId]));
     } else if (action.type === "run-tests") {
       handleRunTests();
@@ -1645,7 +1697,10 @@ expect(result.masterTally.hats).toBe(3);`,
         </div>}
       </section>
 
-      {/* Test Explorer */}
+      </fieldset>
+
+      {/* Test Explorer — stays interactive even for locked marketplace capsules
+          so customers can add their own tests alongside publisher tests. */}
       <section className="editor-section">
         <div className="test-explorer-toolbar">
           <div className="test-explorer-toolbar-left" onClick={() => toggle("tests")} style={{ cursor: "pointer" }}>
@@ -1711,12 +1766,24 @@ expect(result.masterTally.hats).toBe(3);`,
           </div>
         )}
 
+        {locked && (
+          <div className="test-locked-note">
+            <i className="fas fa-lock" aria-hidden="true" />
+            <span>
+              Publisher tests are read-only while this capsule is locked. You can still add,
+              edit, and run <strong>your own tests</strong> without unlocking.
+            </span>
+          </div>
+        )}
+
         <div className="test-explorer-list">
           {suiteNames.map((suiteName) => {
             const suiteTests = filteredTests.filter((t) => t.suite === suiteName);
             if (suiteTests.length === 0) return null;
             const suitePass = suiteTests.every((t) => t.status === "pass");
             const suiteFail = suiteTests.some((t) => t.status === "fail");
+            const suiteHasPublisher = testCases.some((t) => t.suite === suiteName && t.owner === "publisher");
+            const suiteStructureLocked = locked && suiteHasPublisher;
             return (
               <div key={suiteName} className="test-suite">
                 <div className="test-suite-header">
@@ -1729,31 +1796,39 @@ expect(result.masterTally.hats).toBe(3);`,
                   )}
                   <span
                     className="test-suite-name"
-                    contentEditable
+                    contentEditable={!suiteStructureLocked}
                     suppressContentEditableWarning
                     onBlur={(e) => handleRenameSuite(suiteName, e.currentTarget.textContent || suiteName)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
                   >{suiteName}</span>
+                  {suiteStructureLocked && (
+                    <span className="test-owner-tag test-owner-tag-publisher" title="Publisher suite — read-only while locked">
+                      <i className="fas fa-lock" aria-hidden="true" /> Publisher
+                    </span>
+                  )}
                   <span className="test-suite-count">{suiteTests.length} test{suiteTests.length > 1 ? "s" : ""}</span>
                   <button
                     type="button"
                     className="test-suite-add-btn"
                     onClick={() => handleAddTest(suiteName)}
-                    title="Add test to this suite"
+                    title="Add your own test to this suite"
                   >
                     <i className="fas fa-plus" aria-hidden="true" />
                   </button>
-                  <button
-                    type="button"
-                    className="test-suite-delete-btn"
-                    onClick={() => handleDeleteSuite(suiteName)}
-                    title="Delete this suite and all its tests"
-                  >
-                    <i className="fas fa-trash" aria-hidden="true" />
-                  </button>
+                  {!suiteStructureLocked && (
+                    <button
+                      type="button"
+                      className="test-suite-delete-btn"
+                      onClick={() => handleDeleteSuite(suiteName)}
+                      title="Delete this suite and all its tests"
+                    >
+                      <i className="fas fa-trash" aria-hidden="true" />
+                    </button>
+                  )}
                 </div>
                 {suiteTests.map((tc) => {
                   const isExpanded = expandedTests.has(tc.id);
+                  const testReadOnly = isTestReadOnly(tc);
                   return (
                     <div key={tc.id} className={`test-case ${tc.status === "fail" ? "test-case-fail" : tc.status === "pass" ? "test-case-pass" : ""}`}>
                       <div
@@ -1772,7 +1847,17 @@ expect(result.masterTally.hats).toBe(3);`,
                           <i className="fas fa-circle test-icon-idle" aria-hidden="true" />
                         )}
                         <span className="test-case-name">{tc.name}</span>
-                        {suiteNames.length > 1 && (
+                        {isMarketplace && tc.owner === "customer" && (
+                          <span className="test-owner-tag test-owner-tag-customer" title="Your test">
+                            <i className="fas fa-user" aria-hidden="true" /> Yours
+                          </span>
+                        )}
+                        {testReadOnly && (
+                          <span className="test-owner-tag test-owner-tag-publisher" title="Publisher test — read-only while locked">
+                            <i className="fas fa-lock" aria-hidden="true" /> Publisher
+                          </span>
+                        )}
+                        {suiteNames.length > 1 && !testReadOnly && (
                           <select
                             className="test-case-move-select"
                             value={tc.suite}
@@ -1794,14 +1879,16 @@ expect(result.masterTally.hats).toBe(3);`,
                         >
                           <i className="fas fa-play" aria-hidden="true" />
                         </button>
-                        <button
-                          type="button"
-                          className="test-case-delete-btn"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteTest(tc.id); }}
-                          title="Delete this test"
-                        >
-                          <i className="fas fa-trash" aria-hidden="true" />
-                        </button>
+                        {!testReadOnly && (
+                          <button
+                            type="button"
+                            className="test-case-delete-btn"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteTest(tc.id); }}
+                            title="Delete this test"
+                          >
+                            <i className="fas fa-trash" aria-hidden="true" />
+                          </button>
+                        )}
                       </div>
                       {isExpanded && (
                         <div className="test-case-expanded">
@@ -1816,6 +1903,7 @@ expect(result.masterTally.hats).toBe(3);`,
                               <textarea
                                 className="editor-code-area"
                                 value={tc.code}
+                                readOnly={testReadOnly}
                                 onChange={(e) => updateTestCode(tc.id, e.target.value)}
                                 onScroll={(e) => {
                                   const target = e.target as HTMLTextAreaElement;
@@ -1912,8 +2000,6 @@ expect(result.masterTally.hats).toBe(3);`,
           </div>
         </div>
       )}
-
-      </fieldset>
 
       {/* Action Bar */}
       <div className="editor-action-bar">
