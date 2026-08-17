@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { getCatalogItem } from "../data/marketplaceCatalog";
 
 // The current signed-in user for the prototype. Used to attribute
 // who most recently modified an unlocked marketplace extension.
@@ -14,6 +15,10 @@ export interface AddedExtension {
   modifiedAt?: string;
   modifiedBy?: string;
   overrides?: { name?: string; description?: string; code?: string };
+  // The publisher version this definition is pinned to. An update is available
+  // when this is behind the catalog's current version.
+  installedVersion: string;
+  updatedAt?: string;
 }
 
 interface MarketplaceContextValue {
@@ -25,9 +30,11 @@ interface MarketplaceContextValue {
   setEnabled: (id: string, enabled: boolean) => void;
   unlockExtension: (id: string) => void;
   markModified: (id: string, overrides?: AddedExtension["overrides"]) => void;
+  updateAvailable: (id: string) => boolean;
+  updateExtension: (id: string) => void;
 }
 
-const STORAGE_KEY = "finch.marketplace.added.v2";
+const STORAGE_KEY = "finch.marketplace.added.v3";
 
 // Two illustrative pre-installed capsules so the flow is visible on a fresh
 // load: one stock (added, untouched) and one that has been unlocked and
@@ -40,6 +47,8 @@ const SEED_ADDED: AddedExtension[] = [
     enabled: true,
     unlocked: false,
     modified: false,
+    // Pinned behind the catalog's current v3.2.0 so an update is available.
+    installedVersion: "3.0.0",
   },
   {
     id: "mkt-normalize-string",
@@ -55,6 +64,7 @@ const SEED_ADDED: AddedExtension[] = [
       description:
         "Trim, lowercase, and strip characters in one step. Customized to also fold accented EU characters to their ASCII equivalents before hashing.",
     },
+    installedVersion: "2.1.3",
   },
 ];
 
@@ -79,6 +89,8 @@ const MarketplaceContext = createContext<MarketplaceContextValue>({
   setEnabled: () => {},
   unlockExtension: () => {},
   markModified: () => {},
+  updateAvailable: () => false,
+  updateExtension: () => {},
 });
 
 export function MarketplaceProvider({ children }: { children: React.ReactNode }) {
@@ -109,6 +121,8 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
           enabled: true,
           unlocked: false,
           modified: false,
+          // New installs pin to whatever the catalog currently publishes.
+          installedVersion: getCatalogItem(id)?.version ?? "1.0.0",
         },
       ];
     });
@@ -124,6 +138,33 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const unlockExtension = useCallback((id: string) => {
     setAdded((prev) => prev.map((a) => (a.id === id ? { ...a, unlocked: true } : a)));
+  }, []);
+
+  // An update is available when the pinned version is behind the catalog's
+  // current published version.
+  const updateAvailable = useCallback(
+    (id: string) => {
+      const record = added.find((a) => a.id === id);
+      const catalog = getCatalogItem(id);
+      if (!record || !catalog) return false;
+      return record.installedVersion !== catalog.version;
+    },
+    [added]
+  );
+
+  // Pin the definition to the latest published version. Only meaningful for
+  // locked (unmodified) definitions — the editor gates this so a modified,
+  // unlocked copy is never silently overwritten.
+  const updateExtension = useCallback((id: string) => {
+    const catalog = getCatalogItem(id);
+    if (!catalog) return;
+    setAdded((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? { ...a, installedVersion: catalog.version, updatedAt: new Date().toISOString() }
+          : a
+      )
+    );
   }, []);
 
   const markModified = useCallback((id: string, overrides?: AddedExtension["overrides"]) => {
@@ -145,7 +186,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   return (
     <MarketplaceContext.Provider
-      value={{ added, isAdded, getAdded, addExtension, removeExtension, setEnabled, unlockExtension, markModified }}
+      value={{ added, isAdded, getAdded, addExtension, removeExtension, setEnabled, unlockExtension, markModified, updateAvailable, updateExtension }}
     >
       {children}
     </MarketplaceContext.Provider>

@@ -39,6 +39,8 @@ export interface MarketplaceExtension {
   /** The manual attribute/enrichment recipe this capsule replaces today. */
   replaces: string;
   version: string;
+  /** Short "what's new" note describing the latest published version. */
+  changelog?: string;
   installs: string;
   rating: number;
   scope: "Event" | "Visit/Visitor" | "Multi-Scope";
@@ -141,6 +143,8 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "Chains of Add To Property Set / Add To Set of Strings with manual guards, or Functions when filtering is needed.",
     version: "3.2.0",
+    changelog:
+      "v3.2.0 adds an optional case-insensitive dedupe mode and fixes a bug where empty filter matches could add blank entries to the set.",
     installs: "5,400",
     rating: 4.9,
     scope: "Visit/Visitor",

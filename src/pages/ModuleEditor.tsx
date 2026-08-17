@@ -310,7 +310,7 @@ export default function ModuleEditor() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { isMvp } = useMvpMode();
-  const { getAdded, unlockExtension, markModified } = useMarketplace();
+  const { getAdded, unlockExtension, markModified, updateAvailable, updateExtension } = useMarketplace();
   const isNew = id === "new";
 
   // Marketplace extension support: definitions added from the marketplace are
@@ -320,6 +320,14 @@ export default function ModuleEditor() {
   const addedRecord = isMarketplace ? getAdded(id!) : undefined;
   const [unlocked, setUnlocked] = useState(!!addedRecord?.unlocked);
   const locked = isMarketplace && !unlocked;
+
+  // Version / update state. An update is offered only for locked definitions:
+  // a modified, unlocked copy is never silently overwritten by the publisher.
+  const installedVersion = addedRecord?.installedVersion ?? catalogItem?.version ?? "";
+  const hasUpdate = !!(isMarketplace && id && locked && updateAvailable(id));
+  const [justUpdated, setJustUpdated] = useState(false);
+  // Result of running the customer's own tests against the pending version.
+  const [preUpdateTest, setPreUpdateTest] = useState<"idle" | "running" | "passed" | "none">("idle");
 
   const isNormalize = id === "1";
   const isTally = id === "10";
@@ -1129,6 +1137,34 @@ expect(result.masterTally.hats).toBe(3);`,
     if (id) unlockExtension(id);
   };
 
+  // ── Marketplace update flow ──────────────────────────────────────
+  // Run only the customer's own tests against the pending publisher version,
+  // so they can validate the update before applying it.
+  const handleTestBeforeUpdate = () => {
+    const mine = testCases.filter((t) => t.owner === "customer");
+    setCollapsed((prev) => ({ ...prev, tests: false }));
+    document.getElementById("test-explorer-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (mine.length === 0) {
+      setPreUpdateTest("none");
+      return;
+    }
+    setPreUpdateTest("running");
+    const mineIds = new Set(mine.map((t) => t.id));
+    setTestCases((prev) => prev.map((t) => mineIds.has(t.id) ? { ...t, status: "idle" as const, duration: 0, error: undefined } : t));
+    setExpandedTests((prev) => new Set([...prev, ...mine.map((t) => t.id)]));
+    setTimeout(() => {
+      setTestCases((prev) => prev.map((t) => mineIds.has(t.id) ? { ...t, status: "pass" as const, duration: Math.floor(Math.random() * 3) + 1 } : t));
+      setPreUpdateTest("passed");
+    }, 800);
+  };
+
+  const handleApplyUpdate = () => {
+    if (!id) return;
+    updateExtension(id);
+    setJustUpdated(true);
+    setPreUpdateTest("idle");
+  };
+
   const handleSave = () => {
     if (isMarketplace && id && catalogItem) {
       // Detect divergence from the currently-stored version so we only flag
@@ -1204,7 +1240,7 @@ expect(result.masterTally.hats).toBe(3);`,
               {locked ? (
                 <>
                   <strong>Marketplace extension — read-only.</strong> Installed from{" "}
-                  {catalogItem.publisher} (v{catalogItem.version}). Unlock to customize this
+                  {catalogItem.publisher} (v{installedVersion}). Unlock to customize this
                   definition; changes will be tracked against the published version.
                 </>
               ) : addedRecord?.modified ? (
@@ -1227,6 +1263,62 @@ expect(result.masterTally.hats).toBe(3);`,
               <span>Unlock to edit</span>
             </Button>
           )}
+        </div>
+      )}
+
+      {/* Update-available callout — only for locked (unmodified) capsules. */}
+      {isMarketplace && catalogItem && hasUpdate && (
+        <div className="editor-update-banner">
+          <div className="editor-update-head">
+            <span className="editor-update-icon" aria-hidden="true">
+              <i className="fas fa-arrow-up" />
+            </span>
+            <div className="editor-update-text">
+              <strong>Update available — v{installedVersion} &rarr; v{catalogItem.version}</strong>
+              {catalogItem.changelog && <p className="editor-update-changelog">{catalogItem.changelog}</p>}
+            </div>
+          </div>
+
+          <div className="editor-update-actions">
+            {preUpdateTest === "passed" ? (
+              <span className="editor-update-test-result editor-update-test-pass">
+                <i className="fas fa-check-circle" aria-hidden="true" /> Your tests passed against v{catalogItem.version}
+              </span>
+            ) : preUpdateTest === "none" ? (
+              <span className="editor-update-test-result editor-update-test-warn">
+                <i className="fas fa-exclamation-circle" aria-hidden="true" /> No tests of your own yet — add some below to validate first
+              </span>
+            ) : (
+              <span className="editor-update-hint">Recommended: run your own tests against the new version first.</span>
+            )}
+            <div className="editor-update-buttons">
+              <Button type="border" onClick={handleTestBeforeUpdate} attrProps={{ disabled: preUpdateTest === "running" }}>
+                <i className={`fas ${preUpdateTest === "running" ? "fa-spinner fa-spin" : "fa-flask"}`} aria-hidden="true" />
+                <span>{preUpdateTest === "running" ? "Running your tests…" : "Test against v" + catalogItem.version}</span>
+              </Button>
+              <Button type="primary" onClick={handleApplyUpdate}>
+                <i className="fas fa-arrow-up" aria-hidden="true" />
+                <span>Update to v{catalogItem.version}</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Post-update confirmation. */}
+      {isMarketplace && catalogItem && justUpdated && !hasUpdate && (
+        <div className="editor-update-banner editor-update-banner-done">
+          <div className="editor-update-head">
+            <span className="editor-update-icon editor-update-icon-done" aria-hidden="true">
+              <i className="fas fa-check" />
+            </span>
+            <div className="editor-update-text">
+              <strong>Updated to v{catalogItem.version}</strong>
+              <p className="editor-update-changelog">
+                This definition is now on {catalogItem.publisher}&apos;s latest published version.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1710,7 +1802,7 @@ expect(result.masterTally.hats).toBe(3);`,
 
       {/* Test Explorer — stays interactive even for locked marketplace capsules
           so customers can add their own tests alongside publisher tests. */}
-      <section className="editor-section">
+      <section className="editor-section" id="test-explorer-section">
         <div className="test-explorer-toolbar">
           <div className="test-explorer-toolbar-left" onClick={() => toggle("tests")} style={{ cursor: "pointer" }}>
             <h2 className="editor-section-title">
