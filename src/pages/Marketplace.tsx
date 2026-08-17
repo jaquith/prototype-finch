@@ -135,6 +135,7 @@ function MarketplaceCard({
 export default function Marketplace() {
   const { isAdded } = useMarketplace();
   const [category, setCategory] = useState<string>("All");
+  const [tier, setTier] = useState<MarketplaceTier | "all">("all");
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState<MarketplaceExtension | null>(null);
 
@@ -142,17 +143,22 @@ export default function Marketplace() {
     const q = query.trim().toLowerCase();
     return MARKETPLACE_CATALOG.filter((e) => {
       const matchesCat = category === "All" || e.category === category;
+      const matchesTier = tier === "all" || e.tier === tier;
       const matchesQ =
         !q ||
         e.name.toLowerCase().includes(q) ||
         e.publisher.toLowerCase().includes(q) ||
         e.tagline.toLowerCase().includes(q);
-      return matchesCat && matchesQ;
+      return matchesCat && matchesTier && matchesQ;
     });
-  }, [category, query]);
+  }, [category, tier, query]);
 
   const addedCount = MARKETPLACE_CATALOG.filter((e) => isAdded(e.id)).length;
-  const tiers: MarketplaceTier[] = ["core", "community"];
+  const tierFilters: { value: MarketplaceTier | "all"; label: string }[] = [
+    { value: "all", label: "All sources" },
+    { value: "core", label: TIER_LABELS.core.title },
+    { value: "community", label: TIER_LABELS.community.title },
+  ];
 
   return (
     <div className="mkt-page">
@@ -197,31 +203,26 @@ export default function Marketplace() {
         </div>
       </div>
 
-      {tiers.map((tier) => {
-        const items = filtered.filter((e) => e.tier === tier);
-        if (items.length === 0) return null;
-        const meta = TIER_LABELS[tier];
-        return (
-          <section key={tier} className="mkt-shelf">
-            <div className="mkt-shelf-head">
-              <h2 className={`mkt-shelf-title mkt-shelf-title-${tier}`}>
-                {tier === "core" ? (
-                  <i className="fas fa-circle-check" aria-hidden="true" />
-                ) : (
-                  <i className="fas fa-users" aria-hidden="true" />
-                )}
-                {meta.title}
-              </h2>
-              <span className="mkt-shelf-blurb">{meta.blurb}</span>
-            </div>
-            <div className="mkt-grid">
-              {items.map((ext) => (
-                <MarketplaceCard key={ext.id} ext={ext} onOpenDetail={setDetail} />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      <div className="mkt-source-filter" role="group" aria-label="Filter by source">
+        {tierFilters.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            className={`mkt-source-btn ${tier === t.value ? "mkt-source-btn-active" : ""}`}
+            onClick={() => setTier(t.value)}
+          >
+            {t.value === "core" && <i className="fas fa-circle-check" aria-hidden="true" />}
+            {t.value === "community" && <i className="fas fa-users" aria-hidden="true" />}
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mkt-grid">
+        {filtered.map((ext) => (
+          <MarketplaceCard key={ext.id} ext={ext} onOpenDetail={setDetail} />
+        ))}
+      </div>
 
       {filtered.length === 0 && (
         <div className="mkt-empty">

@@ -32,46 +32,45 @@
   margin: 0;
 }
 
-/* Tier shelves */
-.mkt-shelf {
-  margin-bottom: 28px;
+/* Source (tier) filter — segmented control */
+.mkt-source-filter {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 20px;
+  background: var(--gray-100, #f5f6f7);
+  border: 1px solid var(--gray-200, #eef0f2);
+  border-radius: 8px;
 }
 
-.mkt-shelf-head {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding-bottom: 10px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--gray-200, #eef0f2);
-  flex-wrap: wrap;
-}
-
-.mkt-shelf-title {
+.mkt-source-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
+  gap: 6px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gray-800, #6a6a6a);
+  font-size: 12px;
   font-weight: 600;
-  margin: 0;
-  color: var(--gray-900, #303b4c);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
-.mkt-shelf-title i {
-  font-size: 14px;
+.mkt-source-btn i {
+  font-size: 11px;
 }
 
-.mkt-shelf-title-core i {
+.mkt-source-btn:hover {
   color: var(--primary, #007cc2);
 }
 
-.mkt-shelf-title-community i {
-  color: var(--gray-600, #a8a8a8);
-}
-
-.mkt-shelf-blurb {
-  font-size: 13px;
-  color: var(--gray-700, #8a8a8a);
+.mkt-source-btn-active {
+  background: var(--white, #fff);
+  color: var(--gray-900, #303b4c);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 /* Replaces-today callout in the detail drawer */
