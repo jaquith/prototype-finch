@@ -14,7 +14,7 @@ const NAV_ITEMS = [
 export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isMvp, setIsMvp } = useMvpMode();
+  const { isMvp, isExpanded, mode, setMode } = useMvpMode();
   const [activeTab, setActiveTab] = useState("modules");  // nav id unchanged
 
   const handleTabClick = (id: string) => {
@@ -41,14 +41,19 @@ export default function AppLayout() {
           <div className="header-mode-toggle">
             <button
               type="button"
-              className={`header-mode-btn ${isMvp ? "header-mode-btn-active" : ""}`}
-              onClick={() => setIsMvp(true)}
+              className={`header-mode-btn ${mode === "mvp" ? "header-mode-btn-active" : ""}`}
+              onClick={() => setMode("mvp")}
             >MVP</button>
             <button
               type="button"
-              className={`header-mode-btn ${!isMvp ? "header-mode-btn-active" : ""}`}
-              onClick={() => setIsMvp(false)}
+              className={`header-mode-btn ${mode === "full" ? "header-mode-btn-active" : ""}`}
+              onClick={() => setMode("full")}
             >FULL</button>
+            <button
+              type="button"
+              className={`header-mode-btn ${mode === "expanded" ? "header-mode-btn-active" : ""}`}
+              onClick={() => setMode("expanded")}
+            >EXPANDED</button>
           </div>
           <span className="header-env-badge">Prototype</span>
         </div>
@@ -98,6 +103,17 @@ export default function AppLayout() {
                     <i className="fas fa-list-ol sidebar-item-icon" aria-hidden="true" />
                     Instances and Order
                   </button>
+                  {isExpanded && (
+                    <button
+                      type="button"
+                      className={`sidebar-sub-item ${location.pathname === "/marketplace" ? "sidebar-sub-item-active" : ""}`}
+                      onClick={() => navigate("/marketplace")}
+                    >
+                      <i className="fas fa-store sidebar-item-icon" aria-hidden="true" />
+                      Marketplace
+                      <span className="sidebar-new-badge">NEW</span>
+                    </button>
+                  )}
                 </>
               )}
             </React.Fragment>

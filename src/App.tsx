@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import UIKitProvider from "./css/UIKitProvider";
 import { MvpProvider, useMvpMode } from "./contexts/MvpContext";
+import { MarketplaceProvider } from "./contexts/MarketplaceContext";
 import AppLayout from "./components/AppLayout";
 import ExtensionsOverview from "./pages/ExtensionsOverview";
 import ModuleList from "./pages/ModuleList";
@@ -8,6 +9,7 @@ import ModuleEditor from "./pages/ModuleEditor";
 import ModuleInstances from "./pages/ModuleInstances";
 import Attributes from "./pages/Attributes";
 import InstanceOverview from "./pages/InstanceOverview";
+import Marketplace from "./pages/Marketplace";
 
 function IndexRoute() {
   const { isMvp } = useMvpMode();
@@ -43,6 +45,10 @@ const router = createBrowserRouter([
         path: "instances",
         element: <InstanceOverview />,
       },
+      {
+        path: "marketplace",
+        element: <Marketplace />,
+      },
     ],
   },
 ]);
@@ -51,7 +57,9 @@ function App() {
   return (
     <UIKitProvider>
       <MvpProvider>
-        <RouterProvider router={router} />
+        <MarketplaceProvider>
+          <RouterProvider router={router} />
+        </MarketplaceProvider>
       </MvpProvider>
     </UIKitProvider>
   );

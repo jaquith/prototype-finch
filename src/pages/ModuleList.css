@@ -191,7 +191,47 @@
 
 .module-bulk-badge i {
   font-size: 8px;
-}
+  }
+
+  .module-mkt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #007cc2;
+  background: #edf2ff;
+  border: 1px solid #b6d4f0;
+  margin-left: 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+  }
+
+  .module-mkt-badge i {
+  font-size: 8px;
+  }
+
+  .module-modified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #bf5b04;
+  background: #fdf2e3;
+  border: 1px solid #f0c9a0;
+  margin-left: 6px;
+  vertical-align: middle;
+  white-space: nowrap;
+  }
+
+  .module-modified-badge i {
+  font-size: 8px;
+  }
 
 .module-bulk-types {
   color: #7c3aed;

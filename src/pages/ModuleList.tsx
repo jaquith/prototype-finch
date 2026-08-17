@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { getCatalogItem } from "../data/marketplaceCatalog";
+import { formatWhen } from "../utils/formatDate";
 import Button from "../components/SimpleButton";
 import Badge from "../components/SimpleBadge";
 import SimpleSwitch from "../components/SimpleSwitch";
@@ -20,6 +23,12 @@ interface Module {
   activeTimingCounts?: Partial<Record<"Pre-Event" | "Post-Event" | "Pre-Visitor" | "Post-Visitor" | "Post-Audience", number>>;
   isBulk?: boolean;
   supportedTypes?: string[];
+  isMarketplace?: boolean;
+  publisher?: string;
+  modified?: boolean;
+  modifiedBy?: string;
+  modifiedAtISO?: string;
+  addedAtISO?: string;
 }
 
 const ALL_POSITIONS = [
@@ -117,17 +126,50 @@ const RECENT_ERRORS: Record<string, { count: number; message: string; recentInpu
 
 export default function ModuleList() {
   const navigate = useNavigate();
-  const { isMvp } = useMvpMode();
+  const { isMvp, isExpanded } = useMvpMode();
+  const { added, setEnabled } = useMarketplace();
   const [modules, setModules] = useState(MOCK_MODULES);
   const [runningTests, setRunningTests] = useState<Set<string>>(new Set());
   const [runningAll, setRunningAll] = useState(false);
 
+  // Derive Module rows for marketplace extensions the user has added to the
+  // active definitions. These live alongside user-authored extensions.
+  const marketplaceModules = useMemo<Module[]>(() => {
+    return added
+      .map((rec) => {
+        const cat = getCatalogItem(rec.id);
+        if (!cat) return null;
+        const lastISO = rec.modifiedAt || rec.addedAt;
+        return {
+          id: cat.id,
+          name: rec.overrides?.name || cat.name,
+          isBulk: cat.isBulk,
+          supportedTypes: cat.supportedTypes,
+          scope: cat.scope,
+          timing: cat.timings[0],
+          timings: cat.timings,
+          enabled: rec.enabled,
+          lastModified: (lastISO || "").slice(0, 10),
+          tests: { total: 0, passed: 0, failed: 0 },
+          instances: 0,
+          activeTimingCounts: {},
+          isMarketplace: true,
+          publisher: cat.publisher,
+          modified: rec.modified,
+          modifiedBy: rec.modifiedBy,
+          modifiedAtISO: rec.modifiedAt,
+          addedAtISO: rec.addedAt,
+        } as Module;
+      })
+      .filter(Boolean) as Module[];
+  }, [added]);
+
   // Sort modules alphabetically by name
   const sortedModules = useMemo(() => {
-    let list = [...modules];
+    let list = [...modules, ...marketplaceModules];
     if (isMvp) list = list.filter((m) => !m.isBulk);
     return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [modules, isMvp]);
+  }, [modules, marketplaceModules, isMvp]);
 
   const runTestsForModule = useCallback((modId: string) => {
     const mod = modules.find((m) => m.id === modId);
@@ -180,6 +222,10 @@ export default function ModuleList() {
   }, [runningAll, runningTests.size]);
 
   const handleToggle = (id: string, newState: boolean) => {
+    if (id.startsWith("mkt-")) {
+      setEnabled(id, newState);
+      return;
+    }
     setModules((prev) =>
       prev.map((m) => (m.id === id ? { ...m, enabled: newState } : m))
     );
@@ -262,6 +308,12 @@ export default function ModuleList() {
       </div>
 
       <div className="module-list-toolbar">
+        {isExpanded && (
+          <Button type="border" onClick={() => navigate("/marketplace")}>
+            <i className="fas fa-store" aria-hidden="true" />
+            <span>Browse Marketplace</span>
+          </Button>
+        )}
         <Button type="border" onClick={() => navigate("/instances")}>
           <i className="fas fa-list-ol" aria-hidden="true" />
           <span>Instances and Order</span>
@@ -385,6 +437,24 @@ export default function ModuleList() {
                         <i className="fas fa-cubes" aria-hidden="true" />
                         Bulk
                       </span>
+                    )}
+                    {mod.isMarketplace && (
+                      <SimpleTooltip title={`From Marketplace${mod.publisher ? ` · by ${mod.publisher}` : ""}`}>
+                        <span className="module-mkt-badge">
+                          <i className="fas fa-store" aria-hidden="true" />
+                          Marketplace
+                        </span>
+                      </SimpleTooltip>
+                    )}
+                    {mod.isMarketplace && mod.modified && (
+                      <SimpleTooltip
+                        title={`Modified from the published version${mod.modifiedBy ? ` by ${mod.modifiedBy}` : ""}${mod.modifiedAtISO ? ` on ${formatWhen(mod.modifiedAtISO)}` : ""}`}
+                      >
+                        <span className="module-modified-badge">
+                          <i className="fas fa-pen" aria-hidden="true" />
+                          Modified
+                        </span>
+                      </SimpleTooltip>
                     )}
                   </td>
                   <td className="module-table-td module-col-scopes">

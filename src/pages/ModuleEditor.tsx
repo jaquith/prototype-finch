@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { getCatalogItem, isMarketplaceId } from "../data/marketplaceCatalog";
+import { formatWhen } from "../utils/formatDate";
 import Button from "../components/SimpleButton";
 import Textbox from "../components/SimpleTextbox";
 import TextArea from "../components/SimpleTextArea";
@@ -303,7 +306,16 @@ export default function ModuleEditor() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { isMvp } = useMvpMode();
+  const { getAdded, unlockExtension, markModified } = useMarketplace();
   const isNew = id === "new";
+
+  // Marketplace extension support: definitions added from the marketplace are
+  // read-only until explicitly unlocked, then tracked as "modified".
+  const isMarketplace = isMarketplaceId(id);
+  const catalogItem = isMarketplace ? getCatalogItem(id!) : undefined;
+  const addedRecord = isMarketplace ? getAdded(id!) : undefined;
+  const [unlocked, setUnlocked] = useState(!!addedRecord?.unlocked);
+  const locked = isMarketplace && !unlocked;
 
   const isNormalize = id === "1";
   const isTally = id === "10";
@@ -311,10 +323,14 @@ export default function ModuleEditor() {
   const isRecency = id === "8";
 
   const [name, setName] = useState(
-    isNew ? "" : isNormalize ? "Normalize Page URLs" : isTally ? "Tally Over Time" : isNormalizeStrings ? "Lowercase String" : isRecency ? "Recency Frequency Scorer" : "Compute Engagement Score"
+    catalogItem
+      ? addedRecord?.overrides?.name || catalogItem.name
+      : isNew ? "" : isNormalize ? "Normalize Page URLs" : isTally ? "Tally Over Time" : isNormalizeStrings ? "Lowercase String" : isRecency ? "Recency Frequency Scorer" : "Compute Engagement Score"
   );
   const [description, setDescription] = useState(
-    isNew
+    catalogItem
+      ? addedRecord?.overrides?.description || catalogItem.description
+      : isNew
       ? ""
       : isNormalize
         ? "Strips protocol, lowercases, and removes query params and hash fragments from page URLs."
@@ -329,10 +345,16 @@ export default function ModuleEditor() {
 
   // allowedPositions is now derived reactively — see useMemo below
 
-  const [extensionEnabled, setExtensionEnabled] = useState(!isNew);
+  const [extensionEnabled, setExtensionEnabled] = useState(
+    catalogItem ? (addedRecord?.enabled ?? true) : !isNew
+  );
 
   const [inputParams, setInputParams] = useState<ParamDef[]>(
-    isNew
+    catalogItem
+      ? catalogItem.params
+          .filter((p) => p.direction === "input")
+          .map((p) => ({ id: p.id, variableName: p.variableName, type: p.type, description: p.description, staticValue: p.staticValue }))
+      : isNew
       ? []
       : isNormalize
         ? [
@@ -368,7 +390,11 @@ export default function ModuleEditor() {
   );
 
   const [outputParams, setOutputParams] = useState<ParamDef[]>(
-    isNew
+    catalogItem
+      ? catalogItem.params
+          .filter((p) => p.direction === "output")
+          .map((p) => ({ id: p.id, variableName: p.variableName, type: p.type, description: p.description, staticValue: p.staticValue }))
+      : isNew
       ? []
       : isNormalize
         ? [{ id: "p3", variableName: "value", type: "String", description: "Cleaned and normalized value" }]
@@ -383,10 +409,10 @@ export default function ModuleEditor() {
               : [{ id: "p3", variableName: "score", type: "Number" }]
   );
 
-  const instanceCount = isNew ? 0 : isNormalize ? 2 : isTally ? 2 : isNormalizeStrings ? 2 : isRecency ? 4 : 3;
+  const instanceCount = catalogItem ? 0 : isNew ? 0 : isNormalize ? 2 : isTally ? 2 : isNormalizeStrings ? 2 : isRecency ? 4 : 3;
 
   const [isBulkExtension, setIsBulkExtension] = useState(
-    isNormalize || isNormalizeStrings
+    catalogItem ? !!catalogItem.isBulk : isNormalize || isNormalizeStrings
   );
 
   // Derive allowed bulk types from the extension's param definitions (exclude static types)
@@ -408,7 +434,7 @@ export default function ModuleEditor() {
   ];
 
   const [supportedBulkTypes, setSupportedBulkTypes] = useState<string[]>(
-    isNormalize || isNormalizeStrings ? ["String"] : []
+    catalogItem ? (catalogItem.supportedTypes || []) : isNormalize || isNormalizeStrings ? ["String"] : []
   );
 
   const handleToggleBulkType = (type: string) => {
@@ -439,7 +465,9 @@ export default function ModuleEditor() {
   );
 
   const [codeBody, setCodeBody] = useState(
-    isNew ? DEFAULT_NEW_CODE_BODY : isNormalize ? CODE_BODY_NORMALIZE : isTally ? CODE_BODY_TALLY : isNormalizeStrings ? CODE_BODY_NORMALIZE_STRINGS : isRecency ? CODE_BODY_RECENCY : CODE_BODY_ENGAGEMENT
+    catalogItem
+      ? addedRecord?.overrides?.code || catalogItem.code
+      : isNew ? DEFAULT_NEW_CODE_BODY : isNormalize ? CODE_BODY_NORMALIZE : isTally ? CODE_BODY_TALLY : isNormalizeStrings ? CODE_BODY_NORMALIZE_STRINGS : isRecency ? CODE_BODY_RECENCY : CODE_BODY_ENGAGEMENT
   );
 
   // Build the dynamic function signature + header comment from current params
@@ -1043,6 +1071,27 @@ expect(result.masterTally.hats).toBe(3);`,
 
   const activePositionSet = new Set(allowedPositions.map((p) => positionToActiveMap[p]).filter(Boolean));
 
+  // ── Marketplace unlock / save ────────────────────────────────────
+  const handleUnlock = () => {
+    setUnlocked(true);
+    if (id) unlockExtension(id);
+  };
+
+  const handleSave = () => {
+    if (isMarketplace && id && catalogItem) {
+      // Detect divergence from the currently-stored version so we only flag
+      // the definition as "modified" when something actually changed.
+      const baseName = addedRecord?.overrides?.name ?? catalogItem.name;
+      const baseDesc = addedRecord?.overrides?.description ?? catalogItem.description;
+      const baseCode = addedRecord?.overrides?.code ?? catalogItem.code;
+      const changed = name !== baseName || description !== baseDesc || codeBody !== baseCode;
+      if (changed) {
+        markModified(id, { name, description, code: codeBody });
+      }
+    }
+    navigate("/extensions");
+  };
+
   return (
     <div className="module-editor-page">
       {/* Breadcrumb */}
@@ -1093,6 +1142,43 @@ expect(result.masterTally.hats).toBe(3);`,
           )}
         </div>
       </div>
+
+      {/* Marketplace status banner */}
+      {isMarketplace && catalogItem && (
+        <div className={`editor-mkt-banner ${locked ? "editor-mkt-banner-locked" : "editor-mkt-banner-unlocked"}`}>
+          <div className="editor-mkt-banner-main">
+            <i className={locked ? "fas fa-lock" : addedRecord?.modified ? "fas fa-pen" : "fas fa-lock-open"} aria-hidden="true" />
+            <div className="editor-mkt-banner-text">
+              {locked ? (
+                <>
+                  <strong>Marketplace extension — read-only.</strong> Installed from{" "}
+                  {catalogItem.publisher} (v{catalogItem.version}). Unlock to customize this
+                  definition; changes will be tracked against the published version.
+                </>
+              ) : addedRecord?.modified ? (
+                <>
+                  <strong>Unlocked &amp; modified.</strong> Last modified by{" "}
+                  {addedRecord.modifiedBy} on {formatWhen(addedRecord.modifiedAt)}. Originally from{" "}
+                  {catalogItem.publisher} (v{catalogItem.version}).
+                </>
+              ) : (
+                <>
+                  <strong>Unlocked.</strong> You can now edit this definition. Saving your changes
+                  will mark it as modified from {catalogItem.publisher}&apos;s published version.
+                </>
+              )}
+            </div>
+          </div>
+          {locked && (
+            <Button type="primary" onClick={handleUnlock}>
+              <i className="fas fa-lock-open" aria-hidden="true" />
+              <span>Unlock to edit</span>
+            </Button>
+          )}
+        </div>
+      )}
+
+      <fieldset className={`editor-lock-fieldset ${locked ? "editor-lock-fieldset-locked" : ""}`} disabled={locked}>
 
       {/* Metadata section */}
       <section className="editor-section">
