@@ -8,6 +8,14 @@ export function formatWhen(iso?: string): string {
   return `${date} at ${time}`;
 }
 
+// Formats an ISO timestamp into a short, date-only label (no time component).
+export function formatDate(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 export function formatRelative(iso?: string): string {
   if (!iso) return "";
   const d = new Date(iso);

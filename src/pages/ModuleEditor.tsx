@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMvpMode } from "../contexts/MvpContext";
 import { useMarketplace } from "../contexts/MarketplaceContext";
 import { getCatalogItem, isMarketplaceId } from "../data/marketplaceCatalog";
-import { formatWhen } from "../utils/formatDate";
+import { formatWhen, formatDate } from "../utils/formatDate";
 import Button from "../components/SimpleButton";
 import Textbox from "../components/SimpleTextbox";
 import TextArea from "../components/SimpleTextArea";
@@ -1243,38 +1243,80 @@ expect(result.masterTally.hats).toBe(3);`,
         </div>
       </div>
 
-      {/* Marketplace status banner */}
+      {/* Marketplace provenance card — always shows where this definition came
+          from (publisher, published version + date) and its current status. */}
       {isMarketplace && catalogItem && (
-        <div className={`editor-mkt-banner ${locked ? "editor-mkt-banner-locked" : "editor-mkt-banner-unlocked"}`}>
-          <div className="editor-mkt-banner-main">
-            <i className={locked ? "fas fa-lock" : addedRecord?.modified ? "fas fa-pen" : "fas fa-lock-open"} aria-hidden="true" />
-            <div className="editor-mkt-banner-text">
-              {locked ? (
-                <>
-                  <strong>Marketplace extension — read-only.</strong> Installed from{" "}
-                  {catalogItem.publisher} (v{installedVersion}). Unlock to customize this
-                  definition; changes will be tracked against the published version.
-                </>
-              ) : addedRecord?.modified ? (
-                <>
-                  <strong>Unlocked &amp; modified.</strong> Last modified by{" "}
-                  {addedRecord.modifiedBy} on {formatWhen(addedRecord.modifiedAt)}. Originally from{" "}
-                  {catalogItem.publisher} (v{catalogItem.version}).
-                </>
-              ) : (
-                <>
-                  <strong>Unlocked.</strong> You can now edit this definition. Saving your changes
-                  will mark it as modified from {catalogItem.publisher}&apos;s published version.
-                </>
-              )}
+        <div className={`editor-mkt-card ${locked ? "editor-mkt-card-locked" : addedRecord?.modified ? "editor-mkt-card-modified" : "editor-mkt-card-unlocked"}`}>
+          <div className="editor-mkt-card-header">
+            <span className="editor-mkt-card-badge">
+              <i className="fas fa-shopping-bag" aria-hidden="true" />
+              Marketplace extension
+            </span>
+            {locked ? (
+              <span className="editor-mkt-status editor-mkt-status-locked">
+                <i className="fas fa-lock" aria-hidden="true" /> Read-only
+              </span>
+            ) : addedRecord?.modified ? (
+              <span className="editor-mkt-status editor-mkt-status-modified">
+                <i className="fas fa-pen" aria-hidden="true" /> Modified
+              </span>
+            ) : (
+              <span className="editor-mkt-status editor-mkt-status-unlocked">
+                <i className="fas fa-lock-open" aria-hidden="true" /> Unlocked
+              </span>
+            )}
+            {locked && (
+              <Button type="primary" onClick={handleUnlock} attrProps={{ className: "editor-mkt-card-unlock" }}>
+                <i className="fas fa-lock-open" aria-hidden="true" />
+                <span>Unlock to edit</span>
+              </Button>
+            )}
+          </div>
+
+          <div className="editor-mkt-meta">
+            <div className="editor-mkt-meta-item">
+              <span className="editor-mkt-meta-label">Publisher</span>
+              <span className="editor-mkt-meta-value">
+                {catalogItem.publisher}
+                {catalogItem.verified && (
+                  <i className="fas fa-circle-check editor-mkt-verified" aria-hidden="true" title="Verified publisher" />
+                )}
+              </span>
+            </div>
+            <div className="editor-mkt-meta-item">
+              <span className="editor-mkt-meta-label">Installed version</span>
+              <span className="editor-mkt-meta-value">v{installedVersion}</span>
+            </div>
+            <div className="editor-mkt-meta-item">
+              <span className="editor-mkt-meta-label">Published</span>
+              <span className="editor-mkt-meta-value">
+                v{catalogItem.version}
+                {catalogItem.publishedAt && <> &middot; {formatDate(catalogItem.publishedAt)}</>}
+              </span>
             </div>
           </div>
-          {locked && (
-            <Button type="primary" onClick={handleUnlock}>
-              <i className="fas fa-lock-open" aria-hidden="true" />
-              <span>Unlock to edit</span>
-            </Button>
-          )}
+
+          <p className="editor-mkt-explain">
+            {locked ? (
+              <>
+                This definition matches {catalogItem.publisher}&apos;s published version and is
+                read-only. Unlock it to customize; your changes will then be tracked separately from
+                the publisher&apos;s version.
+              </>
+            ) : addedRecord?.modified ? (
+              <>
+                <strong>Modified</strong> means your team has customized this from{" "}
+                {catalogItem.publisher}&apos;s published v{installedVersion}
+                {addedRecord.modifiedBy && <> — last changed by {addedRecord.modifiedBy} on {formatWhen(addedRecord.modifiedAt)}</>}.
+                Publisher updates won&apos;t overwrite your changes automatically.
+              </>
+            ) : (
+              <>
+                Unlocked for editing but still identical to {catalogItem.publisher}&apos;s published
+                version. Saving any change will mark this definition as <strong>modified</strong>.
+              </>
+            )}
+          </p>
         </div>
       )}
 

@@ -39,6 +39,8 @@ export interface MarketplaceExtension {
   /** The manual attribute/enrichment recipe this capsule replaces today. */
   replaces: string;
   version: string;
+  /** ISO date the current version was published to the marketplace. */
+  publishedAt?: string;
   /** Short "what's new" note describing the latest published version. */
   changelog?: string;
   installs: string;
@@ -76,6 +78,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "A 3-attribute, 3-enrichment recipe: one conditional Capture Date, one unconditional Capture Date, and a Set Difference Between Two Dates.",
     version: "1.4.0",
+    publishedAt: "2026-06-15",
     installs: "4,120",
     rating: 4.8,
     scope: "Visit/Visitor",
@@ -107,6 +110,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "Multi-step chains of Lowercase String, Remove String, and Set String — or a fallback to Functions.",
     version: "2.1.3",
+    publishedAt: "2026-05-02",
     installs: "3,150",
     rating: 4.7,
     scope: "Multi-Scope",
@@ -143,6 +147,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "Chains of Add To Property Set / Add To Set of Strings with manual guards, or Functions when filtering is needed.",
     version: "3.2.0",
+    publishedAt: "2026-08-05",
     changelog:
       "v3.2.0 adds an optional case-insensitive dedupe mode and fixes a bug where empty filter matches could add blank entries to the set.",
     installs: "5,400",
@@ -178,6 +183,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "The single-expiration-per-timeline constraint that forces a separate timeline per window, each with its own Update Timeline + Set Expiration pair.",
     version: "1.1.2",
+    publishedAt: "2026-07-10",
     installs: "3,880",
     rating: 4.6,
     scope: "Visit/Visitor",
@@ -211,6 +217,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "4 enrichments on the session-end trigger — one per state transition (assign on has-cart, assign on not-purchased, remove on purchased, remove on empty).",
     version: "1.0.5",
+    publishedAt: "2026-04-20",
     installs: "2,640",
     rating: 4.4,
     scope: "Visit/Visitor",
@@ -239,6 +246,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "3 enrichments: reset to false on visit start, set true on non-empty cart view, set false on empty cart view.",
     version: "1.0.2",
+    publishedAt: "2026-03-18",
     installs: "2,210",
     rating: 4.2,
     scope: "Visit/Visitor",
@@ -268,6 +276,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "Up to 21 transformations — URL flags, timeline push/expiration/count, threshold comparisons, and intermediate badge chaining.",
     version: "2.3.1",
+    publishedAt: "2026-07-22",
     installs: "1,490",
     rating: 4.1,
     scope: "Visit/Visitor",
@@ -296,6 +305,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "1–4 intermediate Set Boolean flag attributes per pattern, each gated by a contains/regex rule and reused across audiences.",
     version: "1.5.0",
+    publishedAt: "2026-06-30",
     installs: "2,980",
     rating: 4.3,
     scope: "Event",
@@ -326,6 +336,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     replaces:
       "Running-total metrics (Increment / Decrement, Increment Tally) combined with timeline counts and thresholds across many intermediate attributes.",
     version: "0.9.4",
+    publishedAt: "2026-08-01",
     installs: "1,320",
     rating: 4.0,
     scope: "Visit/Visitor",

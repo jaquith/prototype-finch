@@ -2,53 +2,133 @@
   max-width: 900px;
 }
 
-/* Marketplace status banner */
-.editor-mkt-banner {
+/* Marketplace provenance card */
+.editor-mkt-card {
+  border-radius: 8px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid #dbe3ec;
+  background: #f7f9fc;
+}
+
+.editor-mkt-card-locked {
+  border-color: #b6d4f0;
+  background: #f0f6fc;
+}
+
+.editor-mkt-card-modified {
+  border-color: #f0c9a0;
+  background: #fdf6ec;
+}
+
+.editor-mkt-card-unlocked {
+  border-color: #cfe6d6;
+  background: #f1f8f3;
+}
+
+.editor-mkt-card-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border-radius: 6px;
-  margin-bottom: 20px;
-  border: 1px solid transparent;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.editor-mkt-banner-main {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.editor-mkt-banner-main > i {
-  font-size: 16px;
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-
-.editor-mkt-banner-text {
+.editor-mkt-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 13px;
-  line-height: 1.5;
+  font-weight: 600;
+  color: var(--gray-900, #303b4c);
 }
 
-.editor-mkt-banner-locked {
-  background: #edf2ff;
-  border-color: #b6d4f0;
+.editor-mkt-card-badge > i {
+  color: #007cc2;
+  font-size: 14px;
+}
+
+.editor-mkt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.editor-mkt-status > i {
+  font-size: 10px;
+}
+
+.editor-mkt-status-locked {
+  background: #e2eefb;
   color: #1b3a5b;
 }
 
-.editor-mkt-banner-locked > .editor-mkt-banner-main > i {
-  color: #007cc2;
+.editor-mkt-status-modified {
+  background: #f6e5cd;
+  color: #8a4b06;
 }
 
-.editor-mkt-banner-unlocked {
-  background: #fdf2e3;
-  border-color: #f0c9a0;
-  color: #5c3a12;
+.editor-mkt-status-unlocked {
+  background: #d9ecdf;
+  color: #1f5b32;
 }
 
-.editor-mkt-banner-unlocked > .editor-mkt-banner-main > i {
-  color: #bf5b04;
+.editor-mkt-card-unlock {
+  margin-left: auto;
+}
+
+.editor-mkt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 32px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.editor-mkt-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.editor-mkt-meta-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--gray-600, #a8a8a8);
+}
+
+.editor-mkt-meta-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-900, #303b4c);
+}
+
+.editor-mkt-verified {
+  color: #2e7d32;
+  font-size: 12px;
+}
+
+.editor-mkt-explain {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--gray-800, #6a6a6a);
+}
+
+.editor-mkt-explain strong {
+  color: var(--gray-900, #303b4c);
+  font-weight: 600;
 }
 
 /* Update-available callout */
