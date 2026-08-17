@@ -9,6 +9,7 @@ export const TYPE_COLORS: Record<string, string> = {
   "Set of Strings": "#0097A7",
   Date: "#D32F2F",
   Funnel: "#5C6BC0",
+  Badge: "#2E7D32",
 };
 
 export const TYPE_ICONS: Record<string, string> = {
@@ -20,4 +21,5 @@ export const TYPE_ICONS: Record<string, string> = {
   "Set of Strings": "fas fa-stream",
   Date: "fas fa-calendar-alt",
   Funnel: "fas fa-filter",
+  Badge: "fas fa-certificate",
 };

@@ -310,7 +310,7 @@ export default function ModuleList() {
       <div className="module-list-toolbar">
         {isExpanded && (
           <Button type="border" onClick={() => navigate("/marketplace")}>
-            <i className="fas fa-store" aria-hidden="true" />
+            <i className="fas fa-shopping-bag" aria-hidden="true" />
             <span>Browse Marketplace</span>
           </Button>
         )}
@@ -441,7 +441,7 @@ export default function ModuleList() {
                     {mod.isMarketplace && (
                       <SimpleTooltip title={`From Marketplace${mod.publisher ? ` · by ${mod.publisher}` : ""}`}>
                         <span className="module-mkt-badge">
-                          <i className="fas fa-store" aria-hidden="true" />
+                          <i className="fas fa-shopping-bag" aria-hidden="true" />
                           Marketplace
                         </span>
                       </SimpleTooltip>

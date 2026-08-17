@@ -109,7 +109,7 @@ export default function AppLayout() {
                       className={`sidebar-sub-item ${location.pathname === "/marketplace" ? "sidebar-sub-item-active" : ""}`}
                       onClick={() => navigate("/marketplace")}
                     >
-                      <i className="fas fa-store sidebar-item-icon" aria-hidden="true" />
+                      <i className="fas fa-shopping-bag sidebar-item-icon" aria-hidden="true" />
                       Marketplace
                       <span className="sidebar-new-badge">NEW</span>
                     </button>

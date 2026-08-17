@@ -1,8 +1,12 @@
 // ─── Marketplace Catalog ─────────────────────────────────────────
-// Publisher-authored, ready-to-install server-side extensions.
+// Publisher-authored, ready-to-install server-side extensions ("capsules").
 // Installing one adds a locked copy to the active Extension Definitions.
 // Once unlocked, it can be edited like any user-authored extension, and
 // the definition tracks that it diverged from the published version.
+//
+// The catalog is organized into two shelves:
+//   • Tier 1 "core"      — Tealium-authored primitives (verified).
+//   • Tier 2 "community" — composite recipes published by the community.
 
 export type Timing =
   | "Pre-Event"
@@ -10,6 +14,8 @@ export type Timing =
   | "Pre-Visitor"
   | "Post-Visitor"
   | "Post-Audience";
+
+export type MarketplaceTier = "core" | "community";
 
 export interface MarketplaceParam {
   id: string;
@@ -25,10 +31,13 @@ export interface MarketplaceExtension {
   name: string;
   publisher: string;
   verified: boolean;
+  tier: MarketplaceTier;
   category: string;
   icon: string;
   tagline: string;
   description: string;
+  /** The manual attribute/enrichment recipe this capsule replaces today. */
+  replaces: string;
   version: string;
   installs: string;
   rating: number;
@@ -50,19 +59,54 @@ const POS = {
 };
 
 export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
+  // ─── Tier 1 — Core (Tealium-authored primitives) ───────────────
   {
-    id: "mkt-email-hash",
-    name: "Email Hasher (SHA-256)",
+    id: "mkt-days-since",
+    name: "Days Since Last Event",
     publisher: "Tealium",
     verified: true,
-    category: "Privacy & Compliance",
-    icon: "fas fa-key",
-    tagline: "Irreversibly hash email addresses before activation.",
+    tier: "core",
+    category: "Dates",
+    icon: "fas fa-clock",
+    tagline: "Days since a visitor last did something.",
     description:
-      "Normalizes and SHA-256 hashes email addresses so raw PII never leaves the pipeline. Runs in bulk across any String attribute, lowercasing and trimming before hashing to match partner match-key specs.",
-    version: "2.3.1",
-    installs: "18.2k",
+      "Emits the number of days since a visitor last performed a chosen event — last purchase, last login, last visit. Replaces the classic two-date-plus-subtraction recipe with a single configurable attribute.",
+    replaces:
+      "A 3-attribute, 3-enrichment recipe: one conditional Capture Date, one unconditional Capture Date, and a Set Difference Between Two Dates.",
+    version: "1.4.0",
+    installs: "4,120",
     rating: 4.8,
+    scope: "Visit/Visitor",
+    timings: ["Post-Event", "Post-Visitor", "Post-Audience"],
+    allowedPositions: [POS.postEvent, POS.postVisitor, POS.postAudience],
+    params: [
+      { id: "p1", variableName: "triggerEvent", type: "String", direction: "input", description: "Event that resets the clock (e.g. purchase)" },
+      { id: "p2", variableName: "lastSeenAt", type: "Date", direction: "input", description: "Timestamp of the visitor's last qualifying event" },
+      { id: "p3", variableName: "daysSince", type: "Number", direction: "output", description: "Whole days since the last qualifying event" },
+    ],
+    code: `  // Whole days between the last qualifying event and now.
+  const last = new Date(input.lastSeenAt || 0).getTime();
+  if (!last) { output.daysSince = null; return; }
+  const ms = Date.now() - last;
+  output.daysSince = Math.max(0, Math.floor(ms / 86400000));
+`,
+  },
+  {
+    id: "mkt-normalize-string",
+    name: "Normalize String",
+    publisher: "Tealium",
+    verified: true,
+    tier: "core",
+    category: "Strings",
+    icon: "fas fa-font",
+    tagline: "Trim, lowercase, and strip characters in one step.",
+    description:
+      "Cleans a string in a single pass: trims whitespace, applies a consistent case, and strips unwanted characters. Runs in bulk across every String attribute of a scope so normalization stops being a multi-enrichment chain.",
+    replaces:
+      "Multi-step chains of Lowercase String, Remove String, and Set String — or a fallback to Functions.",
+    version: "2.1.3",
+    installs: "3,150",
+    rating: 4.7,
     scope: "Multi-Scope",
     isBulk: true,
     supportedTypes: ["String"],
@@ -70,210 +114,230 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     allowedPositions: [POS.preEvent, POS.postEvent, POS.preVisitor, POS.postVisitor, POS.postAudience],
     params: [
       { id: "p0", variableName: "name", type: "String", direction: "input", description: "Attribute name (provided by framework)" },
-      { id: "p1", variableName: "value", type: "String", direction: "input", description: "Raw email address to hash" },
-      { id: "p2", variableName: "value", type: "String", direction: "output", description: "Lowercased, trimmed, SHA-256 hashed value" },
+      { id: "p1", variableName: "value", type: "String", direction: "input", description: "Raw string to normalize" },
+      { id: "p2", variableName: "casing", type: "Static String", direction: "input", staticValue: "lower", description: "lower | upper | none" },
+      { id: "p3", variableName: "stripChars", type: "Static String", direction: "input", staticValue: "", description: "Characters to remove (regex class)" },
+      { id: "p4", variableName: "value", type: "String", direction: "output", description: "Trimmed, cased, stripped value" },
     ],
-    code: `  // Normalize then hash the email so it can be used as a match key.
-  const email = String(input.value || "").trim().toLowerCase();
-  if (!email) { output.value = ""; return; }
-  output.value = await sha256(email);
+    code: `  // Trim, apply casing, then strip unwanted characters in one pass.
+  let s = String(input.value || "").trim();
+  if (input.casing === "lower") s = s.toLowerCase();
+  else if (input.casing === "upper") s = s.toUpperCase();
+  if (input.stripChars) s = s.replace(new RegExp("[" + input.stripChars + "]", "g"), "");
+  output.value = s;
 `,
   },
   {
-    id: "mkt-geoip",
-    name: "GeoIP Enrichment",
-    publisher: "Tealium Labs",
+    id: "mkt-set-builder",
+    name: "Set Builder & Dedupe",
+    publisher: "Tealium",
     verified: true,
-    category: "Enrichment",
-    icon: "fas fa-map-marker-alt",
-    tagline: "Resolve IP addresses to country, region, and city.",
+    tier: "core",
+    category: "Lists & Sets",
+    icon: "fas fa-clone",
+    tagline: "Collect values into a deduplicated set.",
     description:
-      "Looks up the visitor's IP against a bundled GeoIP database and writes country, region, and city attributes. Ideal for geo-based audiences and compliance routing at the event edge.",
-    version: "5.1.0",
-    installs: "31.7k",
-    rating: 4.6,
-    scope: "Event",
-    timings: ["Pre-Event", "Post-Event"],
-    allowedPositions: [POS.preEvent, POS.postEvent],
+      "Accumulates values into a deduplicated Set of Strings — categories browsed, brands purchased, SKUs viewed — with an optional filter. Replaces hand-guarded Add-To-Set chains with one attribute.",
+    replaces:
+      "Chains of Add To Property Set / Add To Set of Strings with manual guards, or Functions when filtering is needed.",
+    version: "3.2.0",
+    installs: "5,400",
+    rating: 4.9,
+    scope: "Visit/Visitor",
+    timings: ["Post-Event", "Post-Visitor"],
+    allowedPositions: [POS.postEvent, POS.postVisitor],
     params: [
-      { id: "p1", variableName: "ipAddress", type: "String", direction: "input", description: "Visitor IP address" },
-      { id: "p2", variableName: "country", type: "String", direction: "output", description: "ISO country code" },
-      { id: "p3", variableName: "region", type: "String", direction: "output", description: "Region / state" },
-      { id: "p4", variableName: "city", type: "String", direction: "output", description: "Resolved city name" },
+      { id: "p1", variableName: "sourceValue", type: "String", direction: "input", description: "Value to add to the set" },
+      { id: "p2", variableName: "existingSet", type: "Set of Strings", direction: "input", description: "Current accumulated set" },
+      { id: "p3", variableName: "filter", type: "Static String", direction: "input", staticValue: "", description: "Optional regex; only matches are added" },
+      { id: "p4", variableName: "values", type: "Set of Strings", direction: "output", description: "Deduplicated set of collected values" },
     ],
-    code: `  // Resolve the IP against the bundled GeoIP dataset.
-  const geo = await geoipLookup(input.ipAddress);
-  output.country = geo.countryCode || "";
-  output.region = geo.region || "";
-  output.city = geo.city || "";
+    code: `  // Add the incoming value to the set unless it fails the filter.
+  const set = new Set(input.existingSet || []);
+  const v = String(input.sourceValue || "").trim();
+  const ok = v && (!input.filter || new RegExp(input.filter).test(v));
+  if (ok) set.add(v);
+  output.values = Array.from(set);
 `,
   },
   {
-    id: "mkt-sentiment",
-    name: "Sentiment Scorer",
-    publisher: "Lexicon AI",
-    verified: false,
-    category: "Machine Learning",
-    icon: "fas fa-smile",
-    tagline: "Score free-text feedback from -1 (negative) to 1 (positive).",
+    id: "mkt-rolling-count",
+    name: "Rolling Count in a Time Window",
+    publisher: "Tealium",
+    verified: true,
+    tier: "core",
+    category: "Dates",
+    icon: "fas fa-history",
+    tagline: "Count of an event in the last N days.",
     description:
-      "Runs a lightweight sentiment model over free-text fields such as reviews, search queries, or support messages, emitting a normalized sentiment score you can threshold into audiences.",
-    version: "1.4.2",
-    installs: "6.9k",
-    rating: 4.3,
+      "Counts how many times an event occurred within a configurable rolling window (7 / 30 / 90 days) from one attribute, instead of maintaining a separate timeline per window.",
+    replaces:
+      "The single-expiration-per-timeline constraint that forces a separate timeline per window, each with its own Update Timeline + Set Expiration pair.",
+    version: "1.1.2",
+    installs: "3,880",
+    rating: 4.6,
+    scope: "Visit/Visitor",
+    timings: ["Post-Event", "Post-Visitor", "Post-Audience"],
+    allowedPositions: [POS.postEvent, POS.postVisitor, POS.postAudience],
+    params: [
+      { id: "p1", variableName: "eventTimestamps", type: "Timeline", direction: "input", description: "Timeline of qualifying event timestamps" },
+      { id: "p2", variableName: "windowDays", type: "Static Number", direction: "input", staticValue: "30", description: "Look-back window length in days" },
+      { id: "p3", variableName: "count", type: "Number", direction: "output", description: "Events within the window" },
+    ],
+    code: `  // Count timeline entries newer than the rolling window boundary.
+  const days = Number(input.windowDays || 30);
+  const cutoff = Date.now() - days * 86400000;
+  const entries = input.eventTimestamps || [];
+  output.count = entries.filter((t) => new Date(t).getTime() >= cutoff).length;
+`,
+  },
+
+  // ─── Tier 2 — Community (composite recipes) ────────────────────
+  {
+    id: "mkt-cart-abandon",
+    name: "Cart Abandonment Badge",
+    publisher: "Retail Patterns Co.",
+    verified: false,
+    tier: "community",
+    category: "Ecommerce",
+    icon: "fas fa-cart-arrow-down",
+    tagline: "Flag sessions that ended with items in cart, no purchase.",
+    description:
+      "A four-state badge that turns on when a visitor ends a session holding cart items without purchasing, and clears itself on purchase or an emptied cart. Composes directly with the Live Cart State Flag.",
+    replaces:
+      "4 enrichments on the session-end trigger — one per state transition (assign on has-cart, assign on not-purchased, remove on purchased, remove on empty).",
+    version: "1.0.5",
+    installs: "2,640",
+    rating: 4.4,
+    scope: "Visit/Visitor",
+    timings: ["Post-Event", "Post-Visitor"],
+    allowedPositions: [POS.postEvent, POS.postVisitor],
+    params: [
+      { id: "p1", variableName: "cartPopulated", type: "Boolean", direction: "input", description: "Visitor currently has cart items" },
+      { id: "p2", variableName: "purchased", type: "Boolean", direction: "input", description: "Visitor completed a purchase" },
+      { id: "p3", variableName: "abandonedCart", type: "Badge", direction: "output", description: "Badge: abandoned cart this session" },
+    ],
+    code: `  // Badge is on only when there's a cart and no purchase followed.
+  output.abandonedCart = Boolean(input.cartPopulated) && !input.purchased;
+`,
+  },
+  {
+    id: "mkt-cart-state",
+    name: "Live Cart State Flag",
+    publisher: "Retail Patterns Co.",
+    verified: false,
+    tier: "community",
+    category: "Ecommerce",
+    icon: "fas fa-shopping-cart",
+    tagline: "Boolean for whether the visitor has items in cart right now.",
+    description:
+      "Maintains a live boolean of the visitor's cart state: reset at visit start, set true on a non-empty cart view, set false on an empty cart view. The building block for cart-abandonment logic.",
+    replaces:
+      "3 enrichments: reset to false on visit start, set true on non-empty cart view, set false on empty cart view.",
+    version: "1.0.2",
+    installs: "2,210",
+    rating: 4.2,
+    scope: "Visit/Visitor",
+    timings: ["Post-Event"],
+    allowedPositions: [POS.postEvent],
+    params: [
+      { id: "p1", variableName: "cartNonEmpty", type: "Boolean", direction: "input", description: "Signal: cart view with items" },
+      { id: "p2", variableName: "cartEmpty", type: "Boolean", direction: "input", description: "Signal: cart view with no items" },
+      { id: "p3", variableName: "hasCart", type: "Boolean", direction: "output", description: "True while the cart holds items" },
+    ],
+    code: `  // Empty view always wins; otherwise a non-empty view sets the flag.
+  if (input.cartEmpty) output.hasCart = false;
+  else if (input.cartNonEmpty) output.hasCart = true;
+`,
+  },
+  {
+    id: "mkt-frequency-badge",
+    name: "Frequency Threshold Badge",
+    publisher: "Convert Collective",
+    verified: false,
+    tier: "community",
+    category: "Segmentation",
+    icon: "fas fa-trophy",
+    tagline: '"Did X at least N times in the last M days" as one badge.',
+    description:
+      "Collapses the heaviest hand-built segmentation recipe into a single configurable badge: qualify an event or URL pattern, set a count threshold and a rolling window, and get a badge when the visitor crosses it.",
+    replaces:
+      "Up to 21 transformations — URL flags, timeline push/expiration/count, threshold comparisons, and intermediate badge chaining.",
+    version: "2.3.1",
+    installs: "1,490",
+    rating: 4.1,
     scope: "Visit/Visitor",
     timings: ["Post-Visitor", "Post-Audience"],
     allowedPositions: [POS.postVisitor, POS.postAudience],
     params: [
-      { id: "p1", variableName: "text", type: "String", direction: "input", description: "Free-text to analyze" },
-      { id: "p2", variableName: "sentiment", type: "Number", direction: "output", description: "Score from -1 to 1" },
+      { id: "p1", variableName: "qualifyingCount", type: "Number", direction: "input", description: "Rolling count of the qualifying event" },
+      { id: "p2", variableName: "threshold", type: "Static Number", direction: "input", staticValue: "3", description: "Minimum count to earn the badge" },
+      { id: "p3", variableName: "earned", type: "Badge", direction: "output", description: "Badge when count ≥ threshold" },
     ],
-    code: `  // Score sentiment of the provided text (-1 negative … 1 positive).
-  const text = String(input.text || "");
-  output.sentiment = text ? scoreSentiment(text) : 0;
+    code: `  // Earn the badge once the qualifying count meets the threshold.
+  output.earned = Number(input.qualifyingCount || 0) >= Number(input.threshold || 1);
 `,
   },
   {
-    id: "mkt-currency",
-    name: "Currency Normalizer",
-    publisher: "Tealium Labs",
-    verified: true,
-    category: "Data Quality",
-    icon: "fas fa-exchange-alt",
-    tagline: "Convert monetary values to a single base currency.",
+    id: "mkt-url-flag",
+    name: "URL Pattern Flag",
+    publisher: "Convert Collective",
+    verified: false,
+    tier: "community",
+    category: "Segmentation",
+    icon: "fas fa-link",
+    tagline: "Boolean that turns on when the URL matches a pattern.",
     description:
-      "Converts any numeric monetary attribute into a configured base currency using daily FX rates. Runs in bulk so every revenue-style Number attribute stays comparable across regions.",
-    version: "3.0.4",
-    installs: "9.5k",
-    rating: 4.5,
-    scope: "Multi-Scope",
-    isBulk: true,
-    supportedTypes: ["Number"],
-    timings: ["Post-Event", "Post-Visitor", "Post-Audience"],
-    allowedPositions: [POS.postEvent, POS.postVisitor, POS.postAudience],
-    params: [
-      { id: "p1", variableName: "value", type: "Number", direction: "input", description: "Monetary amount in source currency" },
-      { id: "p2", variableName: "sourceCurrency", type: "Static String", direction: "input", staticValue: "USD", description: "ISO code of the source currency" },
-      { id: "p3", variableName: "baseCurrency", type: "Static String", direction: "input", staticValue: "USD", description: "ISO code to normalize into" },
-      { id: "p4", variableName: "value", type: "Number", direction: "output", description: "Amount converted to base currency" },
-    ],
-    code: `  // Convert the amount into the configured base currency.
-  const rate = await fxRate(input.sourceCurrency, input.baseCurrency);
-  output.value = Math.round(Number(input.value || 0) * rate * 100) / 100;
-`,
-  },
-  {
-    id: "mkt-phone",
-    name: "Phone Formatter (E.164)",
-    publisher: "Tealium",
-    verified: true,
-    category: "Data Quality",
-    icon: "fas fa-phone",
-    tagline: "Standardize phone numbers to E.164 format.",
-    description:
-      "Cleans and reformats phone numbers to the international E.164 standard, applying a default country code when one is missing. Bulk-mode ready for any String attribute.",
-    version: "1.2.0",
-    installs: "4.1k",
-    rating: 4.2,
-    scope: "Multi-Scope",
-    isBulk: true,
-    supportedTypes: ["String"],
-    timings: ["Pre-Event", "Post-Event", "Post-Visitor"],
-    allowedPositions: [POS.preEvent, POS.postEvent, POS.postVisitor],
-    params: [
-      { id: "p0", variableName: "name", type: "String", direction: "input", description: "Attribute name (provided by framework)" },
-      { id: "p1", variableName: "value", type: "String", direction: "input", description: "Raw phone number" },
-      { id: "p2", variableName: "defaultCountry", type: "Static String", direction: "input", staticValue: "US", description: "Fallback country code" },
-      { id: "p3", variableName: "value", type: "String", direction: "output", description: "E.164 formatted number" },
-    ],
-    code: `  // Reformat to E.164, falling back to the default country when needed.
-  const digits = String(input.value || "").replace(/[^0-9+]/g, "");
-  output.value = toE164(digits, input.defaultCountry);
-`,
-  },
-  {
-    id: "mkt-bot-detect",
-    name: "Bot & Fraud Detector",
-    publisher: "Sentinel Security",
-    verified: true,
-    category: "Security",
-    icon: "fas fa-microchip",
-    tagline: "Flag automated and suspicious traffic with a risk score.",
-    description:
-      "Combines user-agent heuristics and IP reputation to produce a 0–100 bot risk score plus a boolean flag, letting you exclude non-human traffic from audiences and activations.",
-    version: "4.7.3",
-    installs: "22.0k",
-    rating: 4.7,
+      "Turns a page-URL pattern into a reusable boolean — product pages, checkout, a funnel step — replacing the pile of one-off contains/regex flag attributes that get copied across audiences.",
+    replaces:
+      "1–4 intermediate Set Boolean flag attributes per pattern, each gated by a contains/regex rule and reused across audiences.",
+    version: "1.5.0",
+    installs: "2,980",
+    rating: 4.3,
     scope: "Event",
     timings: ["Pre-Event", "Post-Event"],
     allowedPositions: [POS.preEvent, POS.postEvent],
     params: [
-      { id: "p1", variableName: "userAgent", type: "String", direction: "input", description: "Raw user-agent string" },
-      { id: "p2", variableName: "ipAddress", type: "String", direction: "input", description: "Visitor IP address" },
-      { id: "p3", variableName: "botScore", type: "Number", direction: "output", description: "Risk score 0-100" },
-      { id: "p4", variableName: "isBot", type: "Boolean", direction: "output", description: "True when score exceeds threshold" },
+      { id: "p1", variableName: "pageUrl", type: "String", direction: "input", description: "Current page URL" },
+      { id: "p2", variableName: "pattern", type: "Static String", direction: "input", staticValue: "/checkout", description: "Substring or regex to match" },
+      { id: "p3", variableName: "matches", type: "Boolean", direction: "output", description: "True when the URL matches" },
     ],
-    code: `  // Blend UA heuristics with IP reputation into a single risk score.
-  const uaRisk = scoreUserAgent(input.userAgent);
-  const ipRisk = await ipReputation(input.ipAddress);
-  const score = Math.min(100, Math.round(uaRisk * 0.6 + ipRisk * 0.4));
-  output.botScore = score;
-  output.isBot = score >= 70;
+    code: `  // Match the current URL against the configured pattern.
+  const url = String(input.pageUrl || "");
+  try { output.matches = new RegExp(input.pattern).test(url); }
+  catch { output.matches = url.includes(input.pattern); }
 `,
   },
   {
-    id: "mkt-ltv-predict",
-    name: "Predictive LTV Model",
-    publisher: "Lexicon AI",
+    id: "mkt-engagement-rfm",
+    name: "Engagement Score (RFM-style)",
+    publisher: "Signal Foundry",
     verified: false,
-    category: "Machine Learning",
+    tier: "community",
+    category: "Scoring",
     icon: "fas fa-chart-line",
-    tagline: "Forecast 12-month customer lifetime value.",
+    tagline: "One numeric score from recency, frequency, and monetary inputs.",
     description:
-      "Estimates a visitor's projected 12-month lifetime value from purchase history and engagement signals, so high-value prospects can be targeted before they convert.",
-    version: "0.9.6",
-    installs: "3.3k",
+      "Blends recency, frequency, and monetary signals into a single weighted engagement/loyalty score, replacing sprawling chains of running-total metrics, timeline counts, and thresholds.",
+    replaces:
+      "Running-total metrics (Increment / Decrement, Increment Tally) combined with timeline counts and thresholds across many intermediate attributes.",
+    version: "0.9.4",
+    installs: "1,320",
     rating: 4.0,
     scope: "Visit/Visitor",
     timings: ["Post-Visitor", "Post-Audience"],
     allowedPositions: [POS.postVisitor, POS.postAudience],
     params: [
-      { id: "p1", variableName: "purchaseCount", type: "Number", direction: "input", description: "Lifetime purchase count" },
-      { id: "p2", variableName: "avgOrderValue", type: "Number", direction: "input", description: "Average order value" },
-      { id: "p3", variableName: "daysActive", type: "Number", direction: "input", description: "Days since first seen" },
-      { id: "p4", variableName: "predictedLtv", type: "Number", direction: "output", description: "Projected 12-month LTV" },
+      { id: "p1", variableName: "recency", type: "Number", direction: "input", description: "Recency signal (e.g. days since last visit, inverted)" },
+      { id: "p2", variableName: "frequency", type: "Number", direction: "input", description: "Frequency signal (e.g. visits in window)" },
+      { id: "p3", variableName: "monetary", type: "Number", direction: "input", description: "Monetary signal (e.g. lifetime spend)" },
+      { id: "p4", variableName: "weights", type: "Static String", direction: "input", staticValue: "0.4,0.3,0.3", description: "R,F,M weights (must sum to 1)" },
+      { id: "p5", variableName: "score", type: "Number", direction: "output", description: "Weighted 0-100 engagement score" },
     ],
-    code: `  // Simple decayed projection of lifetime value.
-  const freq = Number(input.purchaseCount || 0) / Math.max(1, Number(input.daysActive || 1));
-  const projected = freq * 365 * Number(input.avgOrderValue || 0);
-  output.predictedLtv = Math.round(projected * 100) / 100;
-`,
-  },
-  {
-    id: "mkt-consent",
-    name: "Consent String Parser (TCF v2)",
-    publisher: "OneTrust",
-    verified: true,
-    category: "Privacy & Compliance",
-    icon: "fas fa-shield-alt",
-    tagline: "Decode IAB TCF v2 consent strings into usable flags.",
-    description:
-      "Parses an IAB TCF v2 consent string and exposes granular purpose flags such as advertising and analytics consent, so downstream extensions and activations honor visitor choices.",
-    version: "2.0.0",
-    installs: "11.8k",
-    rating: 4.6,
-    scope: "Event",
-    timings: ["Pre-Event", "Post-Event"],
-    allowedPositions: [POS.preEvent, POS.postEvent],
-    params: [
-      { id: "p1", variableName: "consentString", type: "String", direction: "input", description: "Encoded TCF v2 consent string" },
-      { id: "p2", variableName: "adConsent", type: "Boolean", direction: "output", description: "Consent for advertising" },
-      { id: "p3", variableName: "analyticsConsent", type: "Boolean", direction: "output", description: "Consent for analytics" },
-    ],
-    code: `  // Decode the TCF v2 string and surface the purposes we care about.
-  const decoded = decodeTcf(input.consentString);
-  output.adConsent = decoded.purpose(2) && decoded.purpose(3);
-  output.analyticsConsent = decoded.purpose(7);
+    code: `  // Weighted blend of recency, frequency, and monetary signals.
+  const [wr, wf, wm] = String(input.weights || "0.4,0.3,0.3").split(",").map(Number);
+  const raw = wr * Number(input.recency || 0) + wf * Number(input.frequency || 0) + wm * Number(input.monetary || 0);
+  output.score = Math.max(0, Math.min(100, Math.round(raw)));
 `,
   },
 ];
@@ -289,3 +353,14 @@ export function isMarketplaceId(id: string | undefined): boolean {
 export const MARKETPLACE_CATEGORIES = Array.from(
   new Set(MARKETPLACE_CATALOG.map((e) => e.category))
 ).sort();
+
+export const TIER_LABELS: Record<MarketplaceTier, { title: string; blurb: string }> = {
+  core: {
+    title: "Tealium Core",
+    blurb: "First-party primitives, curated and verified by Tealium.",
+  },
+  community: {
+    title: "Community",
+    blurb: "Composite recipes published and maintained by the community.",
+  },
+};

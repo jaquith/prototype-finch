@@ -27,17 +27,46 @@ interface MarketplaceContextValue {
   markModified: (id: string, overrides?: AddedExtension["overrides"]) => void;
 }
 
-const STORAGE_KEY = "finch.marketplace.added.v1";
+const STORAGE_KEY = "finch.marketplace.added.v2";
+
+// Two illustrative pre-installed capsules so the flow is visible on a fresh
+// load: one stock (added, untouched) and one that has been unlocked and
+// modified from its published version, with who/when attribution.
+const SEED_ADDED: AddedExtension[] = [
+  {
+    id: "mkt-set-builder",
+    addedAt: "2026-07-28T15:12:00.000Z",
+    addedBy: "Priya Nair",
+    enabled: true,
+    unlocked: false,
+    modified: false,
+  },
+  {
+    id: "mkt-normalize-string",
+    addedAt: "2026-07-30T09:40:00.000Z",
+    addedBy: "Marcus Feld",
+    enabled: true,
+    unlocked: true,
+    modified: true,
+    modifiedAt: "2026-08-11T13:22:00.000Z",
+    modifiedBy: "Marcus Feld",
+    overrides: {
+      name: "Normalize String (EU locale)",
+      description:
+        "Trim, lowercase, and strip characters in one step. Customized to also fold accented EU characters to their ASCII equivalents before hashing.",
+    },
+  },
+];
 
 function loadInitial(): AddedExtension[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return SEED_ADDED;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) return SEED_ADDED;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed : SEED_ADDED;
   } catch {
-    return [];
+    return SEED_ADDED;
   }
 }
 
