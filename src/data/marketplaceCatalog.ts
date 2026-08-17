@@ -53,7 +53,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
   {
     id: "mkt-email-hash",
     name: "Email Hasher (SHA-256)",
-    publisher: "Tealium Labs",
+    publisher: "Tealium",
     verified: true,
     category: "Privacy & Compliance",
     icon: "fas fa-key",
@@ -82,7 +82,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
   {
     id: "mkt-geoip",
     name: "GeoIP Enrichment",
-    publisher: "Maxwell Data",
+    publisher: "Tealium Labs",
     verified: true,
     category: "Enrichment",
     icon: "fas fa-map-marker-alt",
@@ -136,7 +136,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
   {
     id: "mkt-currency",
     name: "Currency Normalizer",
-    publisher: "FXStream",
+    publisher: "Tealium Labs",
     verified: true,
     category: "Data Quality",
     icon: "fas fa-exchange-alt",
@@ -165,7 +165,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
   {
     id: "mkt-phone",
     name: "Phone Formatter (E.164)",
-    publisher: "Tealium Labs",
+    publisher: "Tealium",
     verified: true,
     category: "Data Quality",
     icon: "fas fa-phone",
@@ -252,7 +252,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
   {
     id: "mkt-consent",
     name: "Consent String Parser (TCF v2)",
-    publisher: "Tealium Labs",
+    publisher: "OneTrust",
     verified: true,
     category: "Privacy & Compliance",
     icon: "fas fa-shield-alt",
