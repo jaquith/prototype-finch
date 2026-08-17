@@ -139,7 +139,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     publisher: "FXStream",
     verified: true,
     category: "Data Quality",
-    icon: "fas fa-money-bill-transfer",
+    icon: "fas fa-exchange-alt",
     tagline: "Convert monetary values to a single base currency.",
     description:
       "Converts any numeric monetary attribute into a configured base currency using daily FX rates. Runs in bulk so every revenue-style Number attribute stays comparable across regions.",
@@ -197,7 +197,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     publisher: "Sentinel Security",
     verified: true,
     category: "Security",
-    icon: "fas fa-robot",
+    icon: "fas fa-microchip",
     tagline: "Flag automated and suspicious traffic with a risk score.",
     description:
       "Combines user-agent heuristics and IP reputation to produce a 0–100 bot risk score plus a boolean flag, letting you exclude non-human traffic from audiences and activations.",
@@ -255,7 +255,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     publisher: "Tealium Labs",
     verified: true,
     category: "Privacy & Compliance",
-    icon: "fas fa-shield-halved",
+    icon: "fas fa-shield-alt",
     tagline: "Decode IAB TCF v2 consent strings into usable flags.",
     description:
       "Parses an IAB TCF v2 consent string and exposes granular purpose flags such as advertising and analytics consent, so downstream extensions and activations honor visitor choices.",
