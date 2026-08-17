@@ -1653,7 +1653,11 @@ expect(result.masterTally.hats).toBe(3);`,
         </>}
       </section>
 
-      {/* Extension Code */}
+      </fieldset>
+
+      {/* Extension Code — always examinable (read-only when the capsule is
+          locked) so customers can inspect a marketplace extension's source
+          without unlocking it for editing. */}
       <section className="editor-section">
         <div className="editor-section-header editor-section-header-collapsible" onClick={() => toggle("code")}>
           <h2 className="editor-section-title">
@@ -1661,9 +1665,15 @@ expect(result.masterTally.hats).toBe(3);`,
             Extension Code
           </h2>
           <div className="editor-section-header-actions" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: `Generate or improve code for the ${name} extension` } }))}>
-              <i className="fas fa-magic" aria-hidden="true" /> Generate or improve code
-            </button>
+            {locked ? (
+              <span className="editor-code-readonly-pill">
+                <i className="fas fa-lock" aria-hidden="true" /> Read-only
+              </span>
+            ) : (
+              <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: `Generate or improve code for the ${name} extension` } }))}>
+                <i className="fas fa-magic" aria-hidden="true" /> Generate or improve code
+              </button>
+            )}
             <span className="editor-code-line-count">{fullCode.split("\n").length} lines</span>
           </div>
         </div>
@@ -1678,6 +1688,7 @@ expect(result.masterTally.hats).toBe(3);`,
             <textarea
               className="editor-code-area"
               value={fullCode}
+              readOnly={locked}
               onChange={(e) => handleCodeChange(e.target.value)}
               onScroll={(e) => {
                 const target = e.target as HTMLTextAreaElement;
@@ -1696,8 +1707,6 @@ expect(result.masterTally.hats).toBe(3);`,
           </div>
         </div>}
       </section>
-
-      </fieldset>
 
       {/* Test Explorer — stays interactive even for locked marketplace capsules
           so customers can add their own tests alongside publisher tests. */}

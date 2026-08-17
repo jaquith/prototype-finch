@@ -59,10 +59,16 @@
   min-width: 0;
 }
 
-.editor-lock-fieldset-locked {
-  opacity: 0.65;
-  pointer-events: none;
-  user-select: none;
+/* When locked, form controls are disabled via the fieldset's `disabled`
+   attribute (native, cannot be edited). We intentionally do NOT set
+   pointer-events:none here so collapsible section headers can still be
+   expanded/collapsed and text can be selected for examination. */
+.editor-lock-fieldset-locked :disabled {
+  opacity: 0.7;
+}
+
+.editor-lock-fieldset-locked .editor-section-title {
+  opacity: 1;
 }
 
 /* Breadcrumb */
@@ -230,6 +236,22 @@
   font-size: 12px;
   color: var(--gray-600, #a8a8a8);
   font-weight: 400;
+}
+
+.editor-code-readonly-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-700, #8a8a8a);
+  background: var(--gray-200, #edf2f7);
+}
+
+.editor-code-readonly-pill i {
+  font-size: 10px;
 }
 
 .editor-section-help {
