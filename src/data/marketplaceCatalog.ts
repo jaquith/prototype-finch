@@ -56,7 +56,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     publisher: "Tealium Labs",
     verified: true,
     category: "Privacy & Compliance",
-    icon: "fas fa-fingerprint",
+    icon: "fas fa-key",
     tagline: "Irreversibly hash email addresses before activation.",
     description:
       "Normalizes and SHA-256 hashes email addresses so raw PII never leaves the pipeline. Runs in bulk across any String attribute, lowercasing and trimming before hashing to match partner match-key specs.",
@@ -85,7 +85,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     publisher: "Maxwell Data",
     verified: true,
     category: "Enrichment",
-    icon: "fas fa-location-dot",
+    icon: "fas fa-map-marker-alt",
     tagline: "Resolve IP addresses to country, region, and city.",
     description:
       "Looks up the visitor's IP against a bundled GeoIP database and writes country, region, and city attributes. Ideal for geo-based audiences and compliance routing at the event edge.",
@@ -114,7 +114,7 @@ export const MARKETPLACE_CATALOG: MarketplaceExtension[] = [
     publisher: "Lexicon AI",
     verified: false,
     category: "Machine Learning",
-    icon: "fas fa-face-smile",
+    icon: "fas fa-smile",
     tagline: "Score free-text feedback from -1 (negative) to 1 (positive).",
     description:
       "Runs a lightweight sentiment model over free-text fields such as reviews, search queries, or support messages, emitting a normalized sentiment score you can threshold into audiences.",

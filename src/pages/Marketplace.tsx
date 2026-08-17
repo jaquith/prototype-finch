@@ -7,8 +7,8 @@ import { useMarketplace } from "../contexts/MarketplaceContext";
 import {
   MARKETPLACE_CATALOG,
   MARKETPLACE_CATEGORIES,
-  MarketplaceExtension,
 } from "../data/marketplaceCatalog";
+import type { MarketplaceExtension } from "../data/marketplaceCatalog";
 import { formatRelative } from "../utils/formatDate";
 import "./Marketplace.css";
 

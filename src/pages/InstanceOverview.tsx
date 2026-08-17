@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { getCatalogItem } from "../data/marketplaceCatalog";
 import Button from "../components/SimpleButton";
 import Badge from "../components/SimpleBadge";
 import SimpleSwitch from "../components/SimpleSwitch";
@@ -60,6 +62,7 @@ interface ExtensionMeta {
   isBulk: boolean;
   enabled: boolean;
   allowedPositions: { id: string; label: string }[];
+  isMarketplace?: boolean;
 }
 
 const PARAMS_ENGAGEMENT: ParamDef[] = [
@@ -518,9 +521,9 @@ function RulePicker({ onSelect, onClose }: { onSelect: (rule: TriggerRule) => vo
 
 // ─── Extension Picker Component ─────────────────────────────────
 
-function ExtensionPicker({ onSelect, onClose, hideBulk }: { onSelect: (ext: ExtensionMeta) => void; onClose: () => void; hideBulk?: boolean }) {
+function ExtensionPicker({ onSelect, onClose, hideBulk, extensions }: { onSelect: (ext: ExtensionMeta) => void; onClose: () => void; hideBulk?: boolean; extensions: ExtensionMeta[] }) {
   const ref = useRef<HTMLDivElement>(null);
-  const visibleExtensions = hideBulk ? EXTENSIONS.filter((e) => !e.isBulk) : EXTENSIONS;
+  const visibleExtensions = hideBulk ? extensions.filter((e) => !e.isBulk) : extensions;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -538,6 +541,7 @@ function ExtensionPicker({ onSelect, onClose, hideBulk }: { onSelect: (ext: Exte
           onClick={() => { onSelect(ext); onClose(); }}>
           <span className="ov-ext-picker-name">{ext.name}</span>
           {ext.isBulk && <span className="ov-ext-picker-badge">Bulk</span>}
+          {ext.isMarketplace && <span className="ov-ext-picker-badge ov-ext-picker-badge-mkt">Marketplace</span>}
           <span className="ov-ext-picker-positions">{ext.allowedPositions.map(p => p.label).join(", ")}</span>
         </button>
       ))}
@@ -551,7 +555,39 @@ export default function InstanceOverview() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isMvp } = useMvpMode();
+  const { added } = useMarketplace();
   const [instances, setInstances] = useState(INITIAL_INSTANCES);
+
+  // Marketplace extensions that were added to the active definitions can be
+  // used as parents for instances — this is the definitions→instances link.
+  const marketplaceExtensions = useMemo<ExtensionMeta[]>(() => {
+    return added
+      .filter((rec) => rec.enabled)
+      .map((rec) => {
+        const cat = getCatalogItem(rec.id);
+        if (!cat) return null;
+        return {
+          id: cat.id,
+          name: rec.overrides?.name || cat.name,
+          params: cat.params.map((p) => ({
+            variableName: p.variableName,
+            type: p.type,
+            direction: p.direction,
+            description: p.description,
+          })),
+          isBulk: !!cat.isBulk,
+          enabled: rec.enabled,
+          allowedPositions: cat.allowedPositions,
+          isMarketplace: true,
+        } as ExtensionMeta;
+      })
+      .filter(Boolean) as ExtensionMeta[];
+  }, [added]);
+
+  const allExtensions = useMemo(
+    () => [...EXTENSIONS, ...marketplaceExtensions],
+    [marketplaceExtensions]
+  );
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -576,7 +612,7 @@ export default function InstanceOverview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getExtension = useCallback((extId: string) => EXTENSIONS.find((e) => e.id === extId), []);
+  const getExtension = useCallback((extId: string) => allExtensions.find((e) => e.id === extId), [allExtensions]);
 
   const filteredInstances = useMemo(() => {
     let result = instances;
@@ -1269,7 +1305,7 @@ export default function InstanceOverview() {
   const totalCount = instances.length;
 
   // Extension filter options
-  const extFilterOptions = (isMvp ? EXTENSIONS.filter((e) => !e.isBulk) : EXTENSIONS).map((e) => ({ label: e.name, value: e.id }));
+  const extFilterOptions = (isMvp ? allExtensions.filter((e) => !e.isBulk) : allExtensions).map((e) => ({ label: e.name, value: e.id }));
 
   let globalIdx = 0;
 
@@ -1348,7 +1384,7 @@ export default function InstanceOverview() {
               <span>Add Instance</span>
             </Button>
             {showExtPicker && (
-              <ExtensionPicker onSelect={(ext) => handleAddInstance(ext)} onClose={() => setShowExtPicker(false)} hideBulk={isMvp} />
+              <ExtensionPicker onSelect={(ext) => handleAddInstance(ext)} onClose={() => setShowExtPicker(false)} hideBulk={isMvp} extensions={allExtensions} />
             )}
           </div>
         </div>

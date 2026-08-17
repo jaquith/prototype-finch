@@ -2,6 +2,69 @@
   max-width: 900px;
 }
 
+/* Marketplace status banner */
+.editor-mkt-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border: 1px solid transparent;
+}
+
+.editor-mkt-banner-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.editor-mkt-banner-main > i {
+  font-size: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.editor-mkt-banner-text {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.editor-mkt-banner-locked {
+  background: #edf2ff;
+  border-color: #b6d4f0;
+  color: #1b3a5b;
+}
+
+.editor-mkt-banner-locked > .editor-mkt-banner-main > i {
+  color: #007cc2;
+}
+
+.editor-mkt-banner-unlocked {
+  background: #fdf2e3;
+  border-color: #f0c9a0;
+  color: #5c3a12;
+}
+
+.editor-mkt-banner-unlocked > .editor-mkt-banner-main > i {
+  color: #bf5b04;
+}
+
+/* Locked fieldset — read-only form until unlocked */
+.editor-lock-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.editor-lock-fieldset-locked {
+  opacity: 0.65;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Breadcrumb */
 .editor-breadcrumb {
   display: flex;

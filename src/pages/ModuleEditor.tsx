@@ -1913,20 +1913,36 @@ expect(result.masterTally.hats).toBe(3);`,
         </div>
       )}
 
+      </fieldset>
+
       {/* Action Bar */}
       <div className="editor-action-bar">
         <div className="editor-action-primary">
-          <Button type="primary" onClick={() => navigate("/extensions")}>
-            Save
-          </Button>
+          {locked ? (
+            <Button type="primary" onClick={handleUnlock}>
+              <i className="fas fa-lock-open" aria-hidden="true" />
+              <span>Unlock to edit</span>
+            </Button>
+          ) : (
+            <Button type="primary" onClick={handleSave}>
+              Save
+            </Button>
+          )}
           <Button type="secondary" onClick={() => navigate("/extensions")}>
             Cancel
           </Button>
         </div>
-        {!isNew && (
+        {!isNew && !isMarketplace && (
           <div className="editor-action-destructive">
             <Button type="destructive" onClick={() => navigate("/extensions")}>
               Delete Extension
+            </Button>
+          </div>
+        )}
+        {isMarketplace && (
+          <div className="editor-action-destructive">
+            <Button type="destructive" onClick={() => navigate("/extensions")}>
+              Remove from Definitions
             </Button>
           </div>
         )}

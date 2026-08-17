@@ -267,6 +267,11 @@
   letter-spacing: 0.3px;
 }
 
+.ov-ext-picker-badge-mkt {
+  color: #007cc2;
+  background: #edf2ff;
+}
+
 .ov-ext-picker-positions {
   font-size: 11px;
   color: var(--gray-500, #c4c4c4);
