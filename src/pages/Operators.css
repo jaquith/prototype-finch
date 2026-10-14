@@ -244,6 +244,31 @@
   color: var(--green-600, #267a4d);
 }
 
+.op-activation {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--gray-800, #6a6a6a);
+  white-space: nowrap;
+}
+
+.op-activation-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.op-activation-locked .op-switch {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.op-activation-locked .op-activation-status i {
+  font-size: 11px;
+  color: var(--gray-600, #a8a8a8);
+}
+
 .op-enabled-toggle {
   display: flex;
   align-items: center;

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Button from "../components/SimpleButton";
 import OperatorCodeField from "../components/OperatorCodeField";
 import OperatorSentence from "../components/OperatorSentence";
+import OperatorActivationSwitch from "../components/OperatorActivationSwitch";
 import {
   IDENTIFIER_PATTERN,
   MOCK_OPERATORS,
@@ -11,6 +12,7 @@ import {
   SUBJECT_TYPES,
   createBlankOperator,
   negatedOperatorLabel,
+  plainLabel,
   type OperandDef,
   type OperandType,
   type OperatorDef,
@@ -173,18 +175,13 @@ export default function OperatorEditor() {
         </button>
         <div className="op-editor-actions">
           {savedAt && <span className="op-saved">Saved at {savedAt}</span>}
-          <label className="op-enabled-toggle">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={draft.enabled}
-              className={`op-switch ${draft.enabled ? "op-switch-on" : ""}`}
-              onClick={() => update("enabled", !draft.enabled)}
-            >
-              <span className="op-switch-knob" />
-            </button>
-            {draft.enabled ? "Available in conditions" : "Disabled"}
-          </label>
+          <OperatorActivationSwitch
+            verbose
+            enabled={draft.enabled}
+            dependencyCount={usage.length}
+            operatorName={draft.label ? plainLabel(draft.label, draft.operands) : "operator"}
+            onChange={(next) => update("enabled", next)}
+          />
           <Button type="primary" onClick={save} attrProps={{ disabled: !canSave }}>
             {isNew ? "Create Operator" : "Save"}
           </Button>

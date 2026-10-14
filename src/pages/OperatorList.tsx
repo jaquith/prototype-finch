@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/SimpleButton";
-import { MOCK_OPERATORS, OPERATOR_USAGE } from "../data/operators";
+import { MOCK_OPERATORS, OPERATOR_USAGE, plainLabel } from "../data/operators";
 import OperatorSentence from "../components/OperatorSentence";
+import OperatorActivationSwitch from "../components/OperatorActivationSwitch";
 import { evaluateCase } from "../utils/operatorRuntime";
 import "./ModuleList.css";
 import "./Operators.css";
@@ -23,6 +24,7 @@ export default function OperatorList() {
   );
 
   const toggle = (id: string) => {
+    if (enabled[id] && (OPERATOR_USAGE[id]?.length ?? 0) > 0) return;
     setEnabled((prev) => {
       const next = { ...prev, [id]: !prev[id] };
       const op = MOCK_OPERATORS.find((o) => o.id === id);
@@ -58,7 +60,6 @@ export default function OperatorList() {
               <th className="module-table-th">Applies to</th>
               <th className="module-table-th">Operands</th>
               <th className="module-table-th">Tests</th>
-              <th className="module-table-th">Used by</th>
               <th className="module-table-th">Enabled</th>
             </tr>
           </thead>
@@ -99,20 +100,13 @@ export default function OperatorList() {
                       </span>
                     )}
                   </td>
-                  <td className="module-table-td op-muted">
-                    {usage.length === 0 ? "Not used" : `${usage.length} enrichment${usage.length > 1 ? "s" : ""}`}
-                  </td>
                   <td className="module-table-td" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={enabled[op.id]}
-                      aria-label={`${enabled[op.id] ? "Disable" : "Enable"} ${op.label}`}
-                      className={`op-switch ${enabled[op.id] ? "op-switch-on" : ""}`}
-                      onClick={() => toggle(op.id)}
-                    >
-                      <span className="op-switch-knob" />
-                    </button>
+                    <OperatorActivationSwitch
+                      enabled={enabled[op.id]}
+                      dependencyCount={usage.length}
+                      operatorName={plainLabel(op.label, op.operands)}
+                      onChange={() => toggle(op.id)}
+                    />
                   </td>
                 </tr>
               );
