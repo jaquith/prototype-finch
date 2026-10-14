@@ -2,15 +2,15 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/SimpleButton";
 import { MOCK_OPERATORS, OPERATOR_USAGE } from "../data/operators";
-import { evaluateOperator, parseOperand, parseSubject } from "../utils/operatorRuntime";
+import OperatorSentence from "../components/OperatorSentence";
+import { evaluateCase } from "../utils/operatorRuntime";
 import "./ModuleList.css";
 import "./Operators.css";
 
 function countPassing(opId: string): { passed: number; total: number } {
   const op = MOCK_OPERATORS.find((o) => o.id === opId)!;
-  const subjectType = op.subjectTypes[0] ?? "String";
   const passed = op.tests.filter((t) => {
-    const r = evaluateOperator(op.code, parseSubject(t.subject, subjectType), parseOperand(t.operand, op.operandType));
+    const r = evaluateCase(op.code, op.operands, t.subject, t.subjectType, t.operands);
     return r.ok && r.value === t.expected;
   }).length;
   return { passed, total: op.tests.length };
@@ -56,7 +56,7 @@ export default function OperatorList() {
             <tr>
               <th className="module-table-th">Operator</th>
               <th className="module-table-th">Applies to</th>
-              <th className="module-table-th">Operand</th>
+              <th className="module-table-th">Operands</th>
               <th className="module-table-th">Tests</th>
               <th className="module-table-th">Used by</th>
               <th className="module-table-th">Enabled</th>
@@ -72,7 +72,9 @@ export default function OperatorList() {
                     <div className="op-name-cell">
                       <span className="op-fx" aria-hidden="true">ƒ</span>
                       <div>
-                        <div className="module-name-text">{op.label}</div>
+                        <div className="module-name-text op-list-sentence">
+                          <OperatorSentence template={op.label} operands={op.operands} />
+                        </div>
                         <code className="op-identifier">{op.identifier}()</code>
                       </div>
                     </div>
@@ -85,7 +87,7 @@ export default function OperatorList() {
                     </div>
                   </td>
                   <td className="module-table-td op-muted">
-                    {op.operandType === "none" ? "None" : `${op.operandLabel ?? "Value"} (${op.operandType})`}
+                    {op.operands.length === 0 ? "None" : op.operands.map((o) => `${o.label || o.name} (${o.type})`).join(", ")}
                   </td>
                   <td className="module-table-td">
                     {total === 0 ? (

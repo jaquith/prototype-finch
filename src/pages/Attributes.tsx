@@ -415,8 +415,8 @@ const MOCK_ATTRIBUTES: Attribute[] = [
     notes: "Customer loyalty tier derived from lifetime revenue",
     enrichments: [
       { source: "Set Loyalty Tier", sourceType: "rule", description: "For String loyalty_tier, set value to \"gold\" when lifetime_revenue is greater than 5000", when: "Any Event", rule: "High Value Customer", conditions: [
-        { attribute: "lifetime_revenue", operator: "greater than", value: "5000" },
-        { attribute: "last_interaction_date", operator: "custom:op3", value: "90" },
+        { attribute: "lifetime_revenue", operator: "greater than", values: ["5000"] },
+        { attribute: "last_interaction_date", operator: "custom:op3", values: ["90"] },
       ] },
       { source: "Set Loyalty Tier Default", sourceType: "rule", description: "For String loyalty_tier, set value to \"silver\" when lifetime_revenue is greater than 1000", when: "Any Event", rule: "Mid Value Customer" },
     ],
@@ -552,8 +552,9 @@ const MOCK_ATTRIBUTES: Attribute[] = [
     notes: "Unique search terms from across all visits",
     enrichments: [
       { source: "Add Search Term", sourceType: "rule", description: "For Set of Strings search_history, add search_query when search_query is assigned", when: "Any Event", rule: "Search Performed", conditions: [
-        { attribute: "search_query", operator: "is set", value: "" },
-        { attribute: "search_history", operator: "custom:op4", value: "shoes, boots, sandals" },
+        { attribute: "search_query", operator: "is set", values: [] },
+        { attribute: "search_query", operator: "custom:op2", values: ["^[\\w\\s-]{3,64}$"] },
+        { attribute: "search_history", operator: "custom:op4", values: ["shoes, boots, sandals"], negate: true },
       ] },
     ],
     extensions: [],

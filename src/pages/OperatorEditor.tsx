@@ -2,25 +2,36 @@ import React, { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Button from "../components/SimpleButton";
 import OperatorCodeField from "../components/OperatorCodeField";
+import OperatorSentence from "../components/OperatorSentence";
 import {
+  IDENTIFIER_PATTERN,
   MOCK_OPERATORS,
+  OPERAND_TYPES,
   OPERATOR_USAGE,
   SUBJECT_TYPES,
   createBlankOperator,
+  negatedOperatorLabel,
+  type OperandDef,
   type OperandType,
   type OperatorDef,
   type OperatorTest,
   type SubjectType,
+  type TestValueType,
 } from "../data/operators";
-import { evaluateOperator, parseOperand, parseSubject, type EvaluationResult } from "../utils/operatorRuntime";
+import { evaluateCase, operandNameErrors, type EvaluationResult } from "../utils/operatorRuntime";
 import "./Operators.css";
 
-const OPERAND_TYPES: { value: OperandType; label: string }[] = [
-  { value: "none", label: "None (unary)" },
-  { value: "String", label: "String" },
-  { value: "Number", label: "Number" },
-  { value: "List of Strings", label: "List of Strings (comma-separated)" },
-];
+const TEST_VALUE_TYPES: TestValueType[] = [...SUBJECT_TYPES, "Null"];
+
+const PLACEHOLDERS: Record<OperandType | TestValueType, string> = {
+  String: "text",
+  Number: "42",
+  Boolean: "true",
+  Date: "2026-03-05",
+  "Set of Strings": "a, b, c",
+  "List of Strings": "a, b, c",
+  Null: "",
+};
 
 function ResultPill({ result }: { result: EvaluationResult | null }) {
   if (!result) return <span className="op-result op-result-idle">Not run</span>;
@@ -34,6 +45,16 @@ function ResultPill({ result }: { result: EvaluationResult | null }) {
   return <span className={`op-result ${result.value ? "op-result-true" : "op-result-false"}`}>{result.value ? "TRUE" : "FALSE"}</span>;
 }
 
+function SubjectTypeSelect({ value, allowed, onChange, label }: { value: TestValueType; allowed: SubjectType[]; onChange: (t: TestValueType) => void; label: string }) {
+  return (
+    <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value as TestValueType)}>
+      {TEST_VALUE_TYPES.filter((t) => t === "Null" || allowed.includes(t as SubjectType) || t === value).map((t) => (
+        <option key={t} value={t}>{t}</option>
+      ))}
+    </select>
+  );
+}
+
 export default function OperatorEditor() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -41,19 +62,20 @@ export default function OperatorEditor() {
   const source = isNew ? undefined : MOCK_OPERATORS.find((o) => o.id === id);
 
   const [draft, setDraft] = useState<OperatorDef>(() => structuredClone(source ?? createBlankOperator()));
+  const [tryType, setTryType] = useState<TestValueType>(draft.tests[0]?.subjectType ?? draft.subjectTypes[0] ?? "String");
   const [trySubject, setTrySubject] = useState(draft.tests[0]?.subject ?? "");
-  const [tryOperand, setTryOperand] = useState(draft.tests[0]?.operand ?? "");
+  const [tryOperands, setTryOperands] = useState<string[]>(draft.tests[0]?.operands ?? []);
   const [tryResult, setTryResult] = useState<EvaluationResult | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const usage = OPERATOR_USAGE[draft.id] ?? [];
-  const subjectType: SubjectType = draft.subjectTypes[0] ?? "String";
-  const takesOperand = draft.operandType !== "none";
+  const nameErrors = operandNameErrors(draft.operands);
+  const operandsValid = nameErrors.every((e) => e === null);
+  const params = draft.operands.map((o) => o.name);
 
   const testResults = useMemo(
-    () =>
-      draft.tests.map((t) => evaluateOperator(draft.code, parseSubject(t.subject, subjectType), parseOperand(t.operand, draft.operandType))),
-    [draft.code, draft.tests, draft.operandType, subjectType],
+    () => draft.tests.map((t) => evaluateCase(draft.code, draft.operands, t.subject, t.subjectType, t.operands)),
+    [draft.code, draft.tests, draft.operands],
   );
   const passing = testResults.filter((r, i) => r.ok && r.value === draft.tests[i].expected).length;
 
@@ -77,16 +99,55 @@ export default function OperatorEditor() {
     update("subjectTypes", has ? draft.subjectTypes.filter((x) => x !== t) : [...draft.subjectTypes, t]);
   };
 
+  // Operand edits keep each test's positional inputs aligned with the operand list.
+  const updateOperand = (index: number, patch: Partial<OperandDef>) =>
+    update("operands", draft.operands.map((o, i) => (i === index ? { ...o, ...patch } : o)));
+
+  const addOperand = () => {
+    const taken = new Set(params);
+    let n = draft.operands.length + 1;
+    while (taken.has(`arg${n}`)) n++;
+    setDraft((d) => ({
+      ...d,
+      operands: [...d.operands, { name: `arg${n}`, label: "", type: "String" }],
+      tests: d.tests.map((t) => ({ ...t, operands: [...t.operands, ""] })),
+    }));
+    setTryOperands((v) => [...v, ""]);
+    setSavedAt(null);
+  };
+
+  const removeOperand = (index: number) => {
+    setDraft((d) => ({
+      ...d,
+      operands: d.operands.filter((_, i) => i !== index),
+      tests: d.tests.map((t) => ({ ...t, operands: t.operands.filter((_, i) => i !== index) })),
+    }));
+    setTryOperands((v) => v.filter((_, i) => i !== index));
+    setSavedAt(null);
+  };
+
   const updateTest = (testId: string, patch: Partial<OperatorTest>) =>
     update("tests", draft.tests.map((t) => (t.id === testId ? { ...t, ...patch } : t)));
 
+  const updateTestOperand = (t: OperatorTest, index: number, raw: string) =>
+    updateTest(t.id, { operands: draft.operands.map((_, i) => (i === index ? raw : t.operands[i] ?? "")) });
+
   const addTest = () =>
-    update("tests", [...draft.tests, { id: `t${Date.now()}`, name: "new test", subject: "", operand: "", expected: true }]);
+    update("tests", [
+      ...draft.tests,
+      {
+        id: `t${Date.now()}`,
+        name: "new test",
+        subjectType: draft.subjectTypes[0] ?? "String",
+        subject: "",
+        operands: draft.operands.map(() => ""),
+        expected: true,
+      },
+    ]);
 
-  const runTry = () =>
-    setTryResult(evaluateOperator(draft.code, parseSubject(trySubject, subjectType), parseOperand(tryOperand, draft.operandType)));
+  const runTry = () => setTryResult(evaluateCase(draft.code, draft.operands, trySubject, tryType, tryOperands));
 
-  const canSave = draft.label.trim() !== "" && /^[A-Za-z_$][\w$]*$/.test(draft.identifier);
+  const canSave = draft.label.trim() !== "" && IDENTIFIER_PATTERN.test(draft.identifier) && operandsValid;
 
   const save = () => {
     if (!canSave) return;
@@ -101,6 +162,8 @@ export default function OperatorEditor() {
     setDraft(stamped);
     setSavedAt(new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
   };
+
+  const attrLabel = `${draft.subjectTypes.join(" / ")} attribute`;
 
   return (
     <div className="op-editor">
@@ -130,22 +193,33 @@ export default function OperatorEditor() {
 
       <h1 className="op-editor-title">
         <span className="op-fx op-fx-lg" aria-hidden="true">ƒ</span>
-        {draft.label || "New operator"}
+        {draft.label ? <OperatorSentence template={draft.label} operands={draft.operands} slotClassName="op-title-slot" /> : "New operator"}
       </h1>
 
       <section className="op-preview" aria-label="How this operator reads in a condition">
         <span className="op-preview-label">In an enrichment condition</span>
         <div className="op-preview-sentence">
           <span className="op-preview-when">WHEN</span>
-          <span className="op-preview-attr">{draft.subjectTypes.join(" / ")} attribute</span>
+          <span className="op-preview-attr">{attrLabel}</span>
           <span className="op-preview-op">
-            <span aria-hidden="true">ƒ</span> {draft.label || "operator"}
+            <span aria-hidden="true">ƒ</span>
+            <OperatorSentence template={draft.label || "operator"} operands={draft.operands} slotClassName="op-preview-operand" />
           </span>
-          {takesOperand && <span className="op-preview-operand">{draft.operandLabel || "value"}</span>}
           <span className="op-preview-arrow" aria-hidden="true">→</span>
           <span className="op-result op-result-true">TRUE</span>
           <span className="op-muted">or</span>
           <span className="op-result op-result-false">FALSE</span>
+        </div>
+        <div className="op-preview-sentence op-preview-negated">
+          <span className="op-preview-when">WHEN</span>
+          <span className="op-preview-attr">{attrLabel}</span>
+          <span className="op-preview-op op-preview-op-negated">
+            <span className="op-not-badge">NOT</span>
+            <span className="op-muted">reads as</span>
+            <OperatorSentence template={negatedOperatorLabel(draft)} operands={draft.operands} slotClassName="op-preview-operand" />
+          </span>
+          <span className="op-preview-arrow" aria-hidden="true">→</span>
+          <span className="op-muted">inverse result, generated automatically</span>
         </div>
       </section>
 
@@ -156,19 +230,31 @@ export default function OperatorEditor() {
             <div className="op-field-row">
               <label className="op-field">
                 <span>Label in condition builder</span>
-                <input value={draft.label} placeholder="e.g. is valid email" onChange={(e) => update("label", e.target.value)} />
+                <input value={draft.label} placeholder="e.g. is within {days} days of {other}" onChange={(e) => update("label", e.target.value)} />
               </label>
               <label className="op-field">
                 <span>Function identifier</span>
                 <input
                   className="op-mono"
                   value={draft.identifier}
-                  placeholder="isValidEmail"
+                  placeholder="isWithinDaysOf"
                   onChange={(e) => update("identifier", e.target.value)}
-                  aria-invalid={draft.identifier !== "" && !/^[A-Za-z_$][\w$]*$/.test(draft.identifier)}
+                  aria-invalid={draft.identifier !== "" && !IDENTIFIER_PATTERN.test(draft.identifier)}
                 />
               </label>
             </div>
+            <label className="op-field">
+              <span>Negated label (optional)</span>
+              <input
+                value={draft.negatedLabel ?? ""}
+                placeholder={`NOT ${draft.label || "operator"}`}
+                onChange={(e) => update("negatedLabel", e.target.value)}
+              />
+            </label>
+            <p className="op-help">
+              Reference operands with <code>{"{name}"}</code> to place them inside the sentence. Any condition can flip this
+              operator with a NOT toggle, so there&apos;s no need to write an inverse copy.
+            </p>
             <label className="op-field">
               <span>Description</span>
               <textarea rows={2} value={draft.description} onChange={(e) => update("description", e.target.value)} />
@@ -189,33 +275,68 @@ export default function OperatorEditor() {
                 ))}
               </div>
             </fieldset>
-            <div className="op-field-row">
-              <label className="op-field">
-                <span>Operand</span>
-                <select value={draft.operandType} onChange={(e) => update("operandType", e.target.value as OperandType)}>
-                  {OPERAND_TYPES.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+
+            <fieldset className="op-field">
+              <legend>Operands</legend>
+              {draft.operands.length === 0 ? (
+                <p className="op-help">None. This operator only looks at the attribute value.</p>
+              ) : (
+                <div className="op-operands">
+                  <div className="op-operand-row op-operand-head" aria-hidden="true">
+                    <span>Parameter</span>
+                    <span>Label</span>
+                    <span>Type</span>
+                    <span />
+                  </div>
+                  {draft.operands.map((o, i) => (
+                    <div key={i} className="op-operand-row">
+                      <div className="op-operand-name">
+                        <input
+                          className="op-mono"
+                          aria-label={`Operand ${i + 1} parameter name`}
+                          value={o.name}
+                          aria-invalid={nameErrors[i] !== null}
+                          onChange={(e) => updateOperand(i, { name: e.target.value })}
+                        />
+                        {nameErrors[i] && <span className="op-error-text">{nameErrors[i]}</span>}
+                      </div>
+                      <input
+                        aria-label={`Operand ${i + 1} label`}
+                        value={o.label}
+                        placeholder="e.g. Days"
+                        onChange={(e) => updateOperand(i, { label: e.target.value })}
+                      />
+                      <select
+                        aria-label={`Operand ${i + 1} type`}
+                        value={o.type}
+                        onChange={(e) => updateOperand(i, { type: e.target.value as OperandType })}
+                      >
+                        {OPERAND_TYPES.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <button type="button" className="op-icon-btn" aria-label={`Remove operand ${o.name}`} onClick={() => removeOperand(i)}>
+                        <i className="fas fa-times" aria-hidden="true" />
+                      </button>
+                    </div>
                   ))}
-                </select>
-              </label>
-              {takesOperand && (
-                <label className="op-field">
-                  <span>Operand label</span>
-                  <input value={draft.operandLabel ?? ""} placeholder="e.g. Days" onChange={(e) => update("operandLabel", e.target.value)} />
-                </label>
+                </div>
               )}
-            </div>
+              <button type="button" className="op-add-btn" onClick={addOperand}>
+                <i className="fas fa-plus" aria-hidden="true" /> Add operand
+              </button>
+            </fieldset>
           </section>
 
           <section className="op-card">
             <h2 className="op-card-title">Function</h2>
             <p className="op-help">
-              Return a boolean. <code>subject</code> is the attribute value
-              {takesOperand ? <> and <code>operand</code> is the {draft.operandType.toLowerCase()} configured in the condition</> : null}.
-              If the function throws or returns anything other than <code>true</code>/<code>false</code>, the condition evaluates to{" "}
-              <strong>FALSE</strong> at runtime.
+              Return a boolean. Every argument arrives already converted to its declared type: <code>Date</code> values are{" "}
+              <code>Date</code> objects, lists are arrays, numbers are numbers. A missing attribute arrives as <code>null</code>.
+              If the function throws or returns anything other than <code>true</code>/<code>false</code>, the condition
+              evaluates to <strong>FALSE</strong>, whether or not it&apos;s negated.
             </p>
-            <OperatorCodeField value={draft.code} onChange={(c) => update("code", c)} />
+            <OperatorCodeField value={draft.code} onChange={(c) => update("code", c)} identifier={draft.identifier} params={params} />
           </section>
 
           <section className="op-card">
@@ -230,54 +351,87 @@ export default function OperatorEditor() {
             {draft.tests.length === 0 ? (
               <p className="op-help">Add test cases with an expected TRUE or FALSE result. They re-run whenever you edit the function.</p>
             ) : (
-              <table className="op-tests">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Subject ({subjectType})</th>
-                    {takesOperand && <th>Operand</th>}
-                    <th>Expect</th>
-                    <th>Actual</th>
-                    <th><span className="sr-only">Remove</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {draft.tests.map((t, i) => {
-                    const r = testResults[i];
-                    const pass = r.ok && r.value === t.expected;
-                    return (
-                      <tr key={t.id} className={pass ? "" : "op-test-failing"}>
-                        <td><input aria-label="Test name" value={t.name} onChange={(e) => updateTest(t.id, { name: e.target.value })} /></td>
-                        <td><input aria-label="Subject" className="op-mono" value={t.subject} onChange={(e) => updateTest(t.id, { subject: e.target.value })} /></td>
-                        {takesOperand && (
-                          <td><input aria-label="Operand" className="op-mono" value={t.operand} onChange={(e) => updateTest(t.id, { operand: e.target.value })} /></td>
-                        )}
-                        <td>
-                          <button
-                            type="button"
-                            className={`op-result op-result-btn ${t.expected ? "op-result-true" : "op-result-false"}`}
-                            onClick={() => updateTest(t.id, { expected: !t.expected })}
-                            aria-label={`Expected ${t.expected ? "TRUE" : "FALSE"}, click to flip`}
-                          >
-                            {t.expected ? "TRUE" : "FALSE"}
-                          </button>
-                        </td>
-                        <td>
-                          <span className="op-test-actual">
-                            <i className={`fas ${pass ? "fa-check-circle op-pass" : "fa-times-circle op-fail"}`} aria-hidden="true" />
-                            <ResultPill result={r} />
-                          </span>
-                        </td>
-                        <td>
-                          <button type="button" className="op-icon-btn" aria-label="Remove test" onClick={() => update("tests", draft.tests.filter((x) => x.id !== t.id))}>
-                            <i className="fas fa-times" aria-hidden="true" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="op-tests-scroll">
+                <table className="op-tests">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Subject type</th>
+                      <th>Subject</th>
+                      {draft.operands.map((o, i) => (
+                        <th key={i}>
+                          {o.label || o.name} <span className="op-th-type">{o.type}</span>
+                        </th>
+                      ))}
+                      <th>Expect</th>
+                      <th>Actual</th>
+                      <th><span className="sr-only">Remove</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {draft.tests.map((t, i) => {
+                      const r = testResults[i];
+                      const pass = r.ok && r.value === t.expected;
+                      const isNull = t.subjectType === "Null";
+                      return (
+                        <tr key={t.id} className={pass ? "" : "op-test-failing"}>
+                          <td><input aria-label="Test name" value={t.name} onChange={(e) => updateTest(t.id, { name: e.target.value })} /></td>
+                          <td>
+                            <SubjectTypeSelect
+                              label="Subject type"
+                              value={t.subjectType}
+                              allowed={draft.subjectTypes}
+                              onChange={(subjectType) => updateTest(t.id, { subjectType })}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              aria-label="Subject"
+                              className="op-mono"
+                              value={isNull ? "" : t.subject}
+                              disabled={isNull}
+                              placeholder={isNull ? "null" : PLACEHOLDERS[t.subjectType]}
+                              onChange={(e) => updateTest(t.id, { subject: e.target.value })}
+                            />
+                          </td>
+                          {draft.operands.map((o, oi) => (
+                            <td key={oi}>
+                              <input
+                                aria-label={o.label || o.name}
+                                className="op-mono"
+                                value={t.operands[oi] ?? ""}
+                                placeholder={PLACEHOLDERS[o.type]}
+                                onChange={(e) => updateTestOperand(t, oi, e.target.value)}
+                              />
+                            </td>
+                          ))}
+                          <td>
+                            <button
+                              type="button"
+                              className={`op-result op-result-btn ${t.expected ? "op-result-true" : "op-result-false"}`}
+                              onClick={() => updateTest(t.id, { expected: !t.expected })}
+                              aria-label={`Expected ${t.expected ? "TRUE" : "FALSE"}, click to flip`}
+                            >
+                              {t.expected ? "TRUE" : "FALSE"}
+                            </button>
+                          </td>
+                          <td>
+                            <span className="op-test-actual">
+                              <i className={`fas ${pass ? "fa-check-circle op-pass" : "fa-times-circle op-fail"}`} aria-hidden="true" />
+                              <ResultPill result={r} />
+                            </span>
+                          </td>
+                          <td>
+                            <button type="button" className="op-icon-btn" aria-label="Remove test" onClick={() => update("tests", draft.tests.filter((x) => x.id !== t.id))}>
+                              <i className="fas fa-times" aria-hidden="true" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
             {testResults.some((r) => !r.ok) && (
               <p className="op-error-text">
@@ -294,15 +448,30 @@ export default function OperatorEditor() {
           <section className="op-card">
             <h2 className="op-card-title">Try it</h2>
             <label className="op-field">
-              <span>Subject ({subjectType})</span>
-              <input className="op-mono" value={trySubject} onChange={(e) => setTrySubject(e.target.value)} />
+              <span>Subject type</span>
+              <SubjectTypeSelect label="Subject type" value={tryType} allowed={draft.subjectTypes} onChange={setTryType} />
             </label>
-            {takesOperand && (
-              <label className="op-field">
-                <span>{draft.operandLabel || "Operand"}</span>
-                <input className="op-mono" value={tryOperand} onChange={(e) => setTryOperand(e.target.value)} />
+            <label className="op-field">
+              <span>Subject</span>
+              <input
+                className="op-mono"
+                value={tryType === "Null" ? "" : trySubject}
+                disabled={tryType === "Null"}
+                placeholder={tryType === "Null" ? "null" : PLACEHOLDERS[tryType]}
+                onChange={(e) => setTrySubject(e.target.value)}
+              />
+            </label>
+            {draft.operands.map((o, i) => (
+              <label key={i} className="op-field">
+                <span>{o.label || o.name} ({o.type})</span>
+                <input
+                  className="op-mono"
+                  value={tryOperands[i] ?? ""}
+                  placeholder={PLACEHOLDERS[o.type]}
+                  onChange={(e) => setTryOperands(draft.operands.map((_, j) => (j === i ? e.target.value : tryOperands[j] ?? "")))}
+                />
               </label>
-            )}
+            ))}
             <Button onClick={runTry}>
               <i className="fas fa-play" aria-hidden="true" /> Evaluate
             </Button>

@@ -1,19 +1,25 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import OperatorSentence from "./OperatorSentence";
 import {
   BUILT_IN_OPERATORS,
   MOCK_OPERATORS,
   customOperatorValue,
   findCustomOperator,
+  negatedOperatorLabel,
   operatorLabel,
-  operatorTakesValue,
+  operatorOperands,
+  plainLabel,
 } from "../data/operators";
 import "../pages/Operators.css";
 
 export interface EnrichmentCondition {
   attribute: string;
   operator: string;
-  value: string;
+  /** One entry per operand slot of the operator. */
+  values: string[];
+  /** Inverts a custom operator's result. Errors still evaluate to FALSE. */
+  negate?: boolean;
 }
 
 interface AttributeOption {
@@ -28,13 +34,23 @@ interface EnrichmentConditionsProps {
   onChange: (conditions: EnrichmentCondition[]) => void;
 }
 
+const INPUT_TYPES: Record<string, string> = { Number: "number", Date: "date" };
+
 export default function EnrichmentConditions({ conditions, attributes, editing, onChange }: EnrichmentConditionsProps) {
   const navigate = useNavigate();
 
   const update = (index: number, patch: Partial<EnrichmentCondition>) => {
     const next = conditions.map((c, i) => (i === index ? { ...c, ...patch } : c));
-    if (patch.operator !== undefined && !operatorTakesValue(patch.operator)) next[index].value = "";
+    if (patch.operator !== undefined) {
+      next[index].values = operatorOperands(patch.operator).map((_, j) => conditions[index].values[j] ?? "");
+      if (!findCustomOperator(patch.operator)) next[index].negate = false;
+    }
     onChange(next);
+  };
+
+  const setValue = (index: number, slot: number, value: string) => {
+    const c = conditions[index];
+    update(index, { values: operatorOperands(c.operator).map((_, j) => (j === slot ? value : c.values[j] ?? "")) });
   };
 
   if (!editing) {
@@ -50,16 +66,25 @@ export default function EnrichmentConditions({ conditions, attributes, editing, 
               {custom ? (
                 <button
                   type="button"
-                  className="enr-cond-op enr-cond-op-custom"
+                  className={`enr-cond-op enr-cond-op-custom ${c.negate ? "enr-cond-op-negated" : ""}`}
                   onClick={() => navigate(`/operators/${custom.id}`)}
-                  title={custom.description}
+                  title={c.negate ? `Inverse of: ${custom.description}` : custom.description}
                 >
-                  <span aria-hidden="true">ƒ</span> {custom.label}
+                  <span aria-hidden="true">ƒ</span>
+                  {c.negate && <span className="sr-only">Negated:</span>}
+                  <OperatorSentence
+                    template={c.negate ? negatedOperatorLabel(custom) : custom.label}
+                    operands={custom.operands}
+                    values={c.values}
+                    slotClassName="enr-cond-value"
+                  />
                 </button>
               ) : (
-                <span className="enr-cond-op">{operatorLabel(c.operator)}</span>
+                <>
+                  <span className="enr-cond-op">{operatorLabel(c.operator)}</span>
+                  {operatorOperands(c.operator).length > 0 && <code className="enr-cond-value">{c.values[0] || "—"}</code>}
+                </>
               )}
-              {operatorTakesValue(c.operator) && <code className="enr-cond-value">{c.value || "—"}</code>}
             </li>
           );
         })}
@@ -75,7 +100,8 @@ export default function EnrichmentConditions({ conditions, attributes, editing, 
           (op) => op.enabled && (!attrType || op.subjectTypes.some((t) => t === attrType)),
         );
         const selectedCustom = findCustomOperator(c.operator);
-        const showStaleCustom = selectedCustom && !compatible.includes(selectedCustom);
+        const showStaleCustom = selectedCustom && !compatible.some((op) => op.id === selectedCustom.id);
+        const slots = operatorOperands(c.operator);
         return (
           <div key={i} className="enr-cond-edit-row">
             <span className="enr-cond-and">{i === 0 ? "WHEN" : "AND"}</span>
@@ -85,6 +111,17 @@ export default function EnrichmentConditions({ conditions, attributes, editing, 
                 <option key={a.name} value={a.name}>{a.name} ({a.type})</option>
               ))}
             </select>
+            {selectedCustom && (
+              <button
+                type="button"
+                className={`enr-not-toggle ${c.negate ? "enr-not-toggle-on" : ""}`}
+                aria-pressed={!!c.negate}
+                title="Invert this operator's result"
+                onClick={() => update(i, { negate: !c.negate })}
+              >
+                NOT
+              </button>
+            )}
             <select aria-label="Operator" value={c.operator} onChange={(e) => update(i, { operator: e.target.value })}>
               <optgroup label="Built-in">
                 {BUILT_IN_OPERATORS.map((op) => (
@@ -93,20 +130,36 @@ export default function EnrichmentConditions({ conditions, attributes, editing, 
               </optgroup>
               <optgroup label={compatible.length ? "Custom operators" : "Custom operators (none for this type)"}>
                 {compatible.map((op) => (
-                  <option key={op.id} value={customOperatorValue(op)}>ƒ {op.label}</option>
+                  <option key={op.id} value={customOperatorValue(op)}>
+                    ƒ {plainLabel(c.negate && op.id === selectedCustom?.id ? negatedOperatorLabel(op) : op.label, op.operands)}
+                  </option>
                 ))}
                 {showStaleCustom && (
-                  <option value={c.operator}>ƒ {selectedCustom.label} (unavailable)</option>
+                  <option value={c.operator}>ƒ {plainLabel(selectedCustom.label, selectedCustom.operands)} ({selectedCustom.enabled ? "not for this type" : "disabled"})</option>
                 )}
               </optgroup>
             </select>
-            {operatorTakesValue(c.operator) && (
-              <input
-                aria-label="Value"
-                placeholder={selectedCustom?.operandLabel ?? "Value…"}
-                value={c.value}
-                onChange={(e) => update(i, { value: e.target.value })}
-              />
+            {selectedCustom ? (
+              <span className="enr-cond-slots">
+                <OperatorSentence
+                  template={c.negate ? negatedOperatorLabel(selectedCustom) : selectedCustom.label}
+                  operands={selectedCustom.operands}
+                  renderSlot={(operand, slot) => (
+                    <input
+                      aria-label={operand.label || operand.name}
+                      placeholder={operand.label || operand.name}
+                      type={INPUT_TYPES[operand.type] ?? "text"}
+                      className={`enr-slot-input enr-slot-${operand.type === "Number" ? "narrow" : "wide"}`}
+                      value={c.values[slot] ?? ""}
+                      onChange={(e) => setValue(i, slot, e.target.value)}
+                    />
+                  )}
+                />
+              </span>
+            ) : (
+              slots.length > 0 && (
+                <input aria-label="Value" placeholder="Value…" value={c.values[0] ?? ""} onChange={(e) => setValue(i, 0, e.target.value)} />
+              )
             )}
             <button type="button" className="op-icon-btn" aria-label="Remove condition" onClick={() => onChange(conditions.filter((_, j) => j !== i))}>
               <i className="fas fa-times" aria-hidden="true" />
@@ -117,7 +170,7 @@ export default function EnrichmentConditions({ conditions, attributes, editing, 
       <button
         type="button"
         className="op-add-btn"
-        onClick={() => onChange([...conditions, { attribute: "", operator: "equals", value: "" }])}
+        onClick={() => onChange([...conditions, { attribute: "", operator: "equals", values: [""] }])}
       >
         <i className="fas fa-plus" aria-hidden="true" /> Add condition
       </button>

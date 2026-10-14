@@ -103,7 +103,7 @@ export default function AppLayout() {
                     className={`sidebar-sub-item ${location.pathname.startsWith("/operators") ? "sidebar-sub-item-active" : ""}`}
                     onClick={() => navigate("/operators")}
                   >
-                    <i className="fas fa-not-equal sidebar-item-icon" aria-hidden="true" />
+                    <i className="fas fa-filter sidebar-item-icon" aria-hidden="true" />
                     Custom Operators
                   </button>
                 </>

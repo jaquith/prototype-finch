@@ -4,12 +4,13 @@ import { highlightJS } from "../utils/highlightJS";
 interface OperatorCodeFieldProps {
   value: string;
   onChange: (code: string) => void;
+  identifier?: string;
+  params: string[];
 }
 
-const HEADER = "function evaluate(subject, operand) {";
-
-export default function OperatorCodeField({ value, onChange }: OperatorCodeFieldProps) {
+export default function OperatorCodeField({ value, onChange, identifier, params }: OperatorCodeFieldProps) {
   const highlightRef = useRef<HTMLPreElement>(null);
+  const header = `function ${identifier || "evaluate"}(${["subject", ...params].join(", ")}) {`;
   const lineCount = value.split("\n").length;
 
   const syncScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
@@ -33,7 +34,7 @@ export default function OperatorCodeField({ value, onChange }: OperatorCodeField
 
   return (
     <div className="op-code">
-      <pre className="op-code-fixed" dangerouslySetInnerHTML={{ __html: highlightJS(HEADER) }} />
+      <pre className="op-code-fixed" dangerouslySetInnerHTML={{ __html: highlightJS(header) }} />
       <div className="op-code-wrapper">
         <div className="op-code-lines" aria-hidden="true">
           {Array.from({ length: lineCount }, (_, i) => (
