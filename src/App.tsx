@@ -8,6 +8,8 @@ import ModuleEditor from "./pages/ModuleEditor";
 import ModuleInstances from "./pages/ModuleInstances";
 import Attributes from "./pages/Attributes";
 import InstanceOverview from "./pages/InstanceOverview";
+import OperatorList from "./pages/OperatorList";
+import OperatorEditor from "./pages/OperatorEditor";
 
 function IndexRoute() {
   const { isMvp } = useMvpMode();
@@ -42,6 +44,14 @@ const router = createBrowserRouter([
       {
         path: "instances",
         element: <InstanceOverview />,
+      },
+      {
+        path: "operators",
+        element: <OperatorList />,
+      },
+      {
+        path: "operators/:id",
+        element: <OperatorEditor />,
       },
     ],
   },

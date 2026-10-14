@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback } from "react";
 import Button from "../components/SimpleButton";
 import Badge from "../components/SimpleBadge";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useSearchParams } from "react-router-dom";
+import EnrichmentConditions, { type EnrichmentCondition } from "../components/EnrichmentConditions";
 import "./Attributes.css";
 
 type AttrScope = "Visit" | "Visitor" | "Event";
@@ -13,6 +15,7 @@ interface Enrichment {
   description: string;
   when: string;
   rule?: string;
+  conditions?: EnrichmentCondition[];
 }
 
 interface ExtensionRef {
@@ -411,7 +414,10 @@ const MOCK_ATTRIBUTES: Attribute[] = [
     scope: "Visitor",
     notes: "Customer loyalty tier derived from lifetime revenue",
     enrichments: [
-      { source: "Set Loyalty Tier", sourceType: "rule", description: "For String loyalty_tier, set value to \"gold\" when lifetime_revenue is greater than 5000", when: "Any Event", rule: "High Value Customer" },
+      { source: "Set Loyalty Tier", sourceType: "rule", description: "For String loyalty_tier, set value to \"gold\" when lifetime_revenue is greater than 5000", when: "Any Event", rule: "High Value Customer", conditions: [
+        { attribute: "lifetime_revenue", operator: "greater than", value: "5000" },
+        { attribute: "last_interaction_date", operator: "custom:op3", value: "90" },
+      ] },
       { source: "Set Loyalty Tier Default", sourceType: "rule", description: "For String loyalty_tier, set value to \"silver\" when lifetime_revenue is greater than 1000", when: "Any Event", rule: "Mid Value Customer" },
     ],
     extensions: [
@@ -545,7 +551,10 @@ const MOCK_ATTRIBUTES: Attribute[] = [
     scope: "Visitor",
     notes: "Unique search terms from across all visits",
     enrichments: [
-      { source: "Add Search Term", sourceType: "rule", description: "For Set of Strings search_history, add search_query when search_query is assigned", when: "Any Event", rule: "Search Performed" },
+      { source: "Add Search Term", sourceType: "rule", description: "For Set of Strings search_history, add search_query when search_query is assigned", when: "Any Event", rule: "Search Performed", conditions: [
+        { attribute: "search_query", operator: "is set", value: "" },
+        { attribute: "search_history", operator: "custom:op4", value: "shoes, boots, sandals" },
+      ] },
     ],
     extensions: [],
     linkedEnrichments: [],
@@ -596,7 +605,11 @@ function getBulkInstancesForAttr(attr: Attribute, exclusions: Record<string, str
 
 export default function Attributes() {
   const { isMvp } = useMvpMode();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("attr"));
+  const [conditionOverrides, setConditionOverrides] = useState<Record<string, EnrichmentCondition[]>>({});
+  const [editingEnrichment, setEditingEnrichment] = useState<string | null>(null);
+  const attributeOptions = useMemo(() => MOCK_ATTRIBUTES.map((a) => ({ name: a.name, type: a.type })), []);
   const [bulkExclusions, setBulkExclusions] = useState<Record<string, string[]>>(DEFAULT_EXCLUSIONS);
 
   const handleExcludeFromBulk = (instanceId: string, attrName: string) => {
@@ -777,21 +790,40 @@ export default function Attributes() {
                   <span className="attr-detail-section-help"> - These are used to enrich this attribute</span>
                   <button className="attr-detail-add-btn">Add Enrichment</button>
                 </div>
-                {selectedAttr.enrichments.map((e, idx) => (
-                  <div key={idx} className="attr-detail-enrichment-card">
-                    <div className="attr-detail-enrichment-desc">{e.description}</div>
-                    <div className="attr-detail-enrichment-when">
-                      <span className="attr-detail-when-label">WHEN</span>
-                      <span className="attr-detail-when-pipe">|</span>
-                      <span>{e.when}</span>
-                    </div>
-                    {e.rule && (
-                      <div className="attr-detail-enrichment-rule">
-                        <span className="attr-detail-rule-label">Rule:</span> {e.rule}
+                {selectedAttr.enrichments.map((e, idx) => {
+                  const key = `${selectedAttr.id}-${idx}`;
+                  const conditions = conditionOverrides[key] ?? e.conditions ?? [];
+                  const editing = editingEnrichment === key;
+                  return (
+                    <div key={idx} className="attr-detail-enrichment-card">
+                      <div className="attr-detail-enrichment-desc">{e.description}</div>
+                      <div className="attr-detail-enrichment-when">
+                        <span className="attr-detail-when-label">WHEN</span>
+                        <span className="attr-detail-when-pipe">|</span>
+                        <span>{e.when}</span>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {e.rule && (
+                        <div className="attr-detail-enrichment-rule">
+                          <span className="attr-detail-rule-label">Rule:</span> {e.rule}
+                        </div>
+                      )}
+                      <EnrichmentConditions
+                        conditions={conditions}
+                        attributes={attributeOptions}
+                        editing={editing}
+                        onChange={(next) => setConditionOverrides((prev) => ({ ...prev, [key]: next }))}
+                      />
+                      <button
+                        type="button"
+                        className="op-add-btn"
+                        onClick={() => setEditingEnrichment(editing ? null : key)}
+                      >
+                        <i className={`fas ${editing ? "fa-check" : "fa-filter"}`} aria-hidden="true" />{" "}
+                        {editing ? "Done" : conditions.length ? "Edit conditions" : "Add conditions"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
