@@ -178,7 +178,7 @@ export default function OperatorEditor() {
           <OperatorActivationSwitch
             verbose
             enabled={draft.enabled}
-            dependencyCount={usage.length}
+            dependencies={usage}
             operatorName={draft.label ? plainLabel(draft.label, draft.operands) : "operator"}
             onChange={(next) => update("enabled", next)}
           />

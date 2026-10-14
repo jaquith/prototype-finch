@@ -103,7 +103,7 @@ export default function OperatorList() {
                   <td className="module-table-td" onClick={(e) => e.stopPropagation()}>
                     <OperatorActivationSwitch
                       enabled={enabled[op.id]}
-                      dependencyCount={usage.length}
+                      dependencies={usage}
                       operatorName={plainLabel(op.label, op.operands)}
                       onChange={() => toggle(op.id)}
                     />
