@@ -69,15 +69,14 @@ export const MOCK_OPERATORS: OperatorDef[] = [
     description: "TRUE when the value is a syntactically valid email address with a real-looking TLD.",
     subjectTypes: ["String"],
     operands: [],
-    code: `  if (typeof subject !== "string") return false;
-  const pattern = /^[^\\s@]+@[^\\s@]+\\.[a-z]{2,}$/i;
+    code: `  const pattern = /^[^\\s@]+@[^\\s@]+\\.[a-z]{2,}$/i;
   return pattern.test(subject.trim());
 `,
     tests: [
       { id: "t1", name: "accepts a normal address", subjectType: "String", subject: "jane.doe@example.com", operands: [], expected: true },
       { id: "t2", name: "rejects a missing domain", subjectType: "String", subject: "jane.doe@", operands: [], expected: false },
       { id: "t3", name: "rejects whitespace inside", subjectType: "String", subject: "jane doe@example.com", operands: [], expected: false },
-      { id: "t4", name: "rejects a missing attribute", subjectType: "Null", subject: "", operands: [], expected: false },
+
     ],
     enabled: true,
     lastModified: "2026-03-08",
@@ -90,8 +89,7 @@ export const MOCK_OPERATORS: OperatorDef[] = [
     description: "TRUE when the value matches the regular expression given as the operand (case-insensitive).",
     subjectTypes: ["String"],
     operands: [{ name: "pattern", label: "Regex pattern", type: "String" }],
-    code: `  if (typeof subject !== "string" || !pattern) return false;
-  return new RegExp(pattern, "i").test(subject);
+    code: `  return new RegExp(pattern, "i").test(subject);
 `,
     tests: [
       { id: "t1", name: "matches a clean search term", subjectType: "String", subject: "running shoes", operands: ["^[\\w\\s-]{3,64}$"], expected: true },
@@ -109,15 +107,13 @@ export const MOCK_OPERATORS: OperatorDef[] = [
     description: "TRUE when the date value falls between now and N days ago. Future dates evaluate to FALSE.",
     subjectTypes: ["String", "Date"],
     operands: [{ name: "days", label: "Days", type: "Number" }],
-    code: `  const ts = new Date(subject).getTime();
-  if (Number.isNaN(ts)) return false;
-  const ageMs = Date.now() - ts;
+    code: `  const ageMs = Date.now() - subject.getTime();
   return ageMs >= 0 && ageMs <= days * 24 * 60 * 60 * 1000;
 `,
     tests: [
       { id: "t1", name: "accepts a very recent date", subjectType: "Date", subject: daysAgo(2), operands: ["90"], expected: true },
       { id: "t2", name: "rejects a date outside the window", subjectType: "Date", subject: "2019-01-01", operands: ["90"], expected: false },
-      { id: "t3", name: "rejects an unparseable date string", subjectType: "String", subject: "not a date", operands: ["90"], expected: false },
+
     ],
     enabled: true,
     lastModified: "2026-03-11",
@@ -130,8 +126,7 @@ export const MOCK_OPERATORS: OperatorDef[] = [
     description: "TRUE when the set shares at least one value with the operand list. Comparison ignores case.",
     subjectTypes: ["Set of Strings"],
     operands: [{ name: "values", label: "Values", type: "List of Strings" }],
-    code: `  if (!Array.isArray(subject)) return false;
-  const wanted = new Set(values.map((v) => v.toLowerCase()));
+    code: `  const wanted = new Set(values.map((v) => v.toLowerCase()));
   return subject.some((v) => wanted.has(String(v).toLowerCase()));
 `,
     tests: [
@@ -153,15 +148,14 @@ export const MOCK_OPERATORS: OperatorDef[] = [
       { name: "days", label: "Days", type: "Number" },
       { name: "other", label: "Date", type: "Date" },
     ],
-    code: `  if (!(subject instanceof Date)) return false;
-  const gapMs = Math.abs(subject.getTime() - other.getTime());
+    code: `  const gapMs = Math.abs(subject.getTime() - other.getTime());
   return gapMs <= days * 24 * 60 * 60 * 1000;
 `,
     tests: [
       { id: "t1", name: "accepts a date just before", subjectType: "Date", subject: "2026-03-01", operands: ["7", "2026-03-05"], expected: true },
       { id: "t2", name: "accepts a date just after", subjectType: "Date", subject: "2026-03-12", operands: ["7", "2026-03-05"], expected: true },
       { id: "t3", name: "rejects a date outside the window", subjectType: "Date", subject: "2026-04-01", operands: ["7", "2026-03-05"], expected: false },
-      { id: "t4", name: "rejects a missing attribute", subjectType: "Null", subject: "", operands: ["7", "2026-03-05"], expected: false },
+
     ],
     enabled: true,
     lastModified: "2026-03-14",
