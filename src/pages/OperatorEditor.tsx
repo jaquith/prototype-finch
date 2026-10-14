@@ -319,6 +319,10 @@ export default function OperatorEditor() {
                   ))}
                 </div>
               )}
+              <p className="op-help">
+                The declared type is enforced when a condition maps a value to an operand, and the value is converted before your
+                function runs.
+              </p>
               <button type="button" className="op-add-btn" onClick={addOperand}>
                 <i className="fas fa-plus" aria-hidden="true" /> Add operand
               </button>
@@ -329,8 +333,9 @@ export default function OperatorEditor() {
             <h2 className="op-card-title">Function</h2>
             <p className="op-help">
               Return a boolean. Every argument arrives already converted to its declared type: <code>Date</code> values are{" "}
-              <code>Date</code> objects, lists are arrays, numbers are numbers. A missing attribute arrives as <code>null</code>.
-              If the function throws or returns anything other than <code>true</code>/<code>false</code>, the condition
+              <code>Date</code> objects, lists are arrays, numbers are numbers. The platform checks types when it maps and runs the
+              operator, so you don&apos;t need <code>typeof</code> or <code>instanceof</code> guards. Just write the comparison. A
+              missing attribute arrives as <code>null</code>. If the function throws or returns anything other than <code>true</code>/<code>false</code>, the condition
               evaluates to <strong>FALSE</strong>, whether or not it&apos;s negated.
             </p>
             <OperatorCodeField value={draft.code} onChange={(c) => update("code", c)} identifier={draft.identifier} params={params} />
