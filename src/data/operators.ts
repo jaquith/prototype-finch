@@ -170,7 +170,11 @@ export const MOCK_OPERATORS: OperatorDef[] = [
 
 export const OPERATOR_USAGE: Record<string, OperatorUsage[]> = {
   op4: [{ enrichment: "Add Search Term", attribute: "search_history", attributeId: "a21" }],
-  op3: [{ enrichment: "Set Loyalty Tier", attribute: "loyalty_tier", attributeId: "a14" }],
+  op3: [
+    { enrichment: "Set Loyalty Tier", attribute: "loyalty_tier", attributeId: "a14" },
+    { enrichment: "Set Win-Back Date", attribute: "winback_eligible_date", attributeId: "a26" },
+  ],
+  op5: [{ enrichment: "Set Holiday Purchase Date", attribute: "holiday_purchase_date", attributeId: "a25" }],
 };
 
 export function customOperatorValue(op: OperatorDef): string {
