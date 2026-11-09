@@ -1268,8 +1268,8 @@
 .ext-autogrow {
   display: block;
   min-height: 36px;
-  overflow: hidden;
-  resize: none;
+  overflow: auto;
+  resize: vertical;
   white-space: pre-wrap;
   word-break: break-word;
 }
