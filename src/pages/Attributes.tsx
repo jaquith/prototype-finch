@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback } from "react";
 import Button from "../components/SimpleButton";
 import Badge from "../components/SimpleBadge";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { derivedAttributes, installedDerived, type InstalledDerived } from "../data/extensionActivity";
 import { useSearchParams } from "react-router-dom";
 import EnrichmentConditions, { type EnrichmentCondition } from "../components/EnrichmentConditions";
 import "./Attributes.css";
@@ -695,13 +697,48 @@ function getBulkInstancesForAttr(attr: Attribute, exclusions: Record<string, str
   return { active, excluded };
 }
 
+function toAttrType(type: string): AttrType {
+  return type in TYPE_COLORS ? (type as AttrType) : "String";
+}
+
+function mergeDerivedAttributes(base: Attribute[], installed: InstalledDerived[]): Attribute[] {
+  const byName = new Map(base.map((a) => [a.name.toLowerCase(), { ...a, extensions: [...(a.extensions || [])] }]));
+  let nextAttrId = Math.max(0, ...base.map((a) => a.attrId)) + 1;
+  for (const item of installed) {
+    for (const derived of derivedAttributes(item.ext, item.name)) {
+      const key = derived.name.toLowerCase();
+      const existing = byName.get(key);
+      if (existing) {
+        existing.extensions!.push(...derived.refs);
+        continue;
+      }
+      byName.set(key, {
+        id: `derived-${item.id}-${derived.name}`,
+        attrId: nextAttrId++,
+        name: derived.name,
+        type: toAttrType(derived.type),
+        scope: derived.scope,
+        notes: `Example attribute used by ${item.name}.`,
+        enrichments: [],
+        extensions: derived.refs,
+        lastModified: "2026-11-09",
+        lastModifiedBy: "Marketplace install",
+        audienceDB: false,
+      });
+    }
+  }
+  return [...byName.values()];
+}
+
 export default function Attributes() {
   const { isMvp } = useMvpMode();
+  const { added } = useMarketplace();
+  const attributes = useMemo(() => mergeDerivedAttributes(MOCK_ATTRIBUTES, installedDerived(added, false)), [added]);
   const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("attr"));
   const [conditionOverrides, setConditionOverrides] = useState<Record<string, EnrichmentCondition[]>>({});
   const [editingEnrichment, setEditingEnrichment] = useState<string | null>(null);
-  const attributeOptions = useMemo(() => MOCK_ATTRIBUTES.map((a) => ({ name: a.name, type: a.type })), []);
+  const attributeOptions = useMemo(() => attributes.map((a) => ({ name: a.name, type: a.type })), [attributes]);
   const [bulkExclusions, setBulkExclusions] = useState<Record<string, string[]>>(DEFAULT_EXCLUSIONS);
 
   const handleExcludeFromBulk = (instanceId: string, attrName: string) => {
@@ -723,22 +760,22 @@ export default function Attributes() {
   const [orderBy, setOrderBy] = useState<"name" | "date">("name");
 
   const scopeCounts = useMemo(() => {
-    const visitor = MOCK_ATTRIBUTES.filter((a) => a.scope === "Visitor").length;
-    const visit = MOCK_ATTRIBUTES.filter((a) => a.scope === "Visit").length;
-    const event = MOCK_ATTRIBUTES.filter((a) => a.scope === "Event").length;
-    return { all: MOCK_ATTRIBUTES.length, visitor, visit, event };
-  }, []);
+    const visitor = attributes.filter((a) => a.scope === "Visitor").length;
+    const visit = attributes.filter((a) => a.scope === "Visit").length;
+    const event = attributes.filter((a) => a.scope === "Event").length;
+    return { all: attributes.length, visitor, visit, event };
+  }, [attributes]);
 
   const typeCounts = useMemo(() => {
     const counts: Partial<Record<AttrType, number>> = {};
-    MOCK_ATTRIBUTES.forEach((a) => {
+    attributes.forEach((a) => {
       counts[a.type] = (counts[a.type] || 0) + 1;
     });
     return counts;
-  }, []);
+  }, [attributes]);
 
   const filtered = useMemo(() => {
-    let attrs = MOCK_ATTRIBUTES.filter((attr) => {
+    let attrs = attributes.filter((attr) => {
       if (scopeFilter !== "all" && attr.scope !== scopeFilter) return false;
       if (typeFilter !== "all" && attr.type !== typeFilter) return false;
       if (searchQuery && !attr.name.toLowerCase().includes(searchQuery.toLowerCase()) && !attr.notes.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -750,9 +787,9 @@ export default function Attributes() {
       attrs = [...attrs].sort((a, b) => b.lastModified.localeCompare(a.lastModified));
     }
     return attrs;
-  }, [scopeFilter, typeFilter, searchQuery, orderBy]);
+  }, [attributes, scopeFilter, typeFilter, searchQuery, orderBy]);
 
-  const selectedAttr = selectedId ? MOCK_ATTRIBUTES.find((a) => a.id === selectedId) : null;
+  const selectedAttr = selectedId ? attributes.find((a) => a.id === selectedId) : null;
 
   return (
     <div className="attr-page">

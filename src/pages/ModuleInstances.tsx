@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { derivedExtension, derivedInstance, derivedParams } from "../data/extensionActivity";
+import type { ExtensionDefinition } from "../data/extensionTypes";
+import { formatExtensionValue, runExtensionTest } from "../utils/extensionRuntime";
 import { useNavigate, useParams } from "react-router-dom";
 import Button from "../components/SimpleButton";
 import Textbox from "../components/SimpleTextbox";
@@ -677,6 +681,37 @@ function RulePicker({ onSelect, onClose }: { onSelect: (rule: TriggerRule) => vo
   );
 }
 
+function ruleForTrigger(trigger: string): TriggerRule {
+  const match = PREDEFINED_RULES.find((r) => r.name === trigger);
+  return match ? { ...match } : { ...DEFAULT_RULE };
+}
+
+function toModuleInstance(ext: ExtensionDefinition): ExtensionInstance {
+  const inst = derivedInstance(ext);
+  return {
+    id: inst.id,
+    name: inst.name,
+    enabled: inst.enabled,
+    timing: inst.timing,
+    rule: ruleForTrigger(inst.trigger),
+    inputMappings: inst.inputMappings,
+    outputMappings: inst.outputMappings,
+  };
+}
+
+function registryTestResults(ext: ExtensionDefinition): TestResult[] {
+  const inputs = ext.params.filter((p) => p.direction === "input");
+  const outputs = ext.params.filter((p) => p.direction === "output");
+  return ext.tests.map((t) => {
+    const result = runExtensionTest(ext.code, inputs, outputs, t);
+    if (result.ok && result.pass) return { name: t.name, status: "pass" as const };
+    const error = result.ok
+      ? result.checks.filter((c) => !c.pass).map((c) => `${c.name}: expected ${formatExtensionValue(c.expected)}, received ${formatExtensionValue(c.actual)}`).join("; ")
+      : result.error;
+    return { name: t.name, status: "fail" as const, error };
+  });
+}
+
 export default function ModuleInstances() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -684,18 +719,28 @@ export default function ModuleInstances() {
   const isTally = id === "10";
   const isNormalizeStrings = id === "11";
   const isRecency = id === "8";
-  const isBulkExtension = isNormalize || isNormalizeStrings;
-  const extensionName = isNormalize ? "Normalize Page URLs" : isTally ? "Tally Over Time" : isNormalizeStrings ? "Lowercase String" : isRecency ? "Recency Frequency Scorer" : "Compute Engagement Score";
-  const mockParams = isNormalize ? PARAMS_NORMALIZE : isTally ? PARAMS_TALLY : isNormalizeStrings ? PARAMS_NORMALIZE_STRINGS : isRecency ? PARAMS_RECENCY : PARAMS_ENGAGEMENT;
+  const derivedExt = useMemo(() => derivedExtension(id), [id]);
+  const { getAdded } = useMarketplace();
+  const isBulkExtension = derivedExt ? derivedExt.isBulk : isNormalize || isNormalizeStrings;
+  const extensionName = derivedExt
+    ? getAdded(id || "")?.overrides?.name || derivedExt.name
+    : isNormalize ? "Normalize Page URLs" : isTally ? "Tally Over Time" : isNormalizeStrings ? "Lowercase String" : isRecency ? "Recency Frequency Scorer" : "Compute Engagement Score";
+  const mockParams: ParamDef[] = useMemo(
+    () => derivedExt ? derivedParams(derivedExt) : isNormalize ? PARAMS_NORMALIZE : isTally ? PARAMS_TALLY : isNormalizeStrings ? PARAMS_NORMALIZE_STRINGS : isRecency ? PARAMS_RECENCY : PARAMS_ENGAGEMENT,
+    [derivedExt, isNormalize, isTally, isNormalizeStrings, isRecency]
+  );
   const inputParams = mockParams.filter((p) => p.direction === "input");
   const outputParams = mockParams.filter((p) => p.direction === "output");
-  const mockTestResults = isNormalize ? TEST_RESULTS_NORMALIZE : isTally ? TEST_RESULTS_TALLY : isNormalizeStrings ? TEST_RESULTS_NORMALIZE_STRINGS : isRecency ? TEST_RESULTS_RECENCY : TEST_RESULTS_ENGAGEMENT;
-
-  const [instances, setInstances] = useState<ExtensionInstance[]>(
-    isNormalize ? INSTANCES_NORMALIZE : isTally ? INSTANCES_TALLY : isNormalizeStrings ? INSTANCES_NORMALIZE_STRINGS : isRecency ? INSTANCES_RECENCY : INSTANCES_ENGAGEMENT
+  const mockTestResults = useMemo(
+    () => derivedExt ? registryTestResults(derivedExt) : isNormalize ? TEST_RESULTS_NORMALIZE : isTally ? TEST_RESULTS_TALLY : isNormalizeStrings ? TEST_RESULTS_NORMALIZE_STRINGS : isRecency ? TEST_RESULTS_RECENCY : TEST_RESULTS_ENGAGEMENT,
+    [derivedExt, isNormalize, isTally, isNormalizeStrings, isRecency]
   );
 
-  const allowedPositions = ALLOWED_POSITIONS[id || ""] || [];
+  const [instances, setInstances] = useState<ExtensionInstance[]>(() =>
+    derivedExt ? [toModuleInstance(derivedExt)] : isNormalize ? INSTANCES_NORMALIZE : isTally ? INSTANCES_TALLY : isNormalizeStrings ? INSTANCES_NORMALIZE_STRINGS : isRecency ? INSTANCES_RECENCY : INSTANCES_ENGAGEMENT
+  );
+
+  const allowedPositions = derivedExt ? derivedExt.allowedPositions : ALLOWED_POSITIONS[id || ""] || [];
   const isMultiScope = allowedPositions.length > 1;
 
   const handleInstanceTimingChange = (instId: string, newTiming: string) => {

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import Badge from "../components/SimpleBadge";
 import SimpleTooltip from "../components/SimpleTooltip";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { derivedUsage, installedDerived } from "../data/extensionActivity";
 import "./ExtensionsOverview.css";
 
 // ─── Mock data ───────────────────────────────────────────────────
@@ -98,10 +100,21 @@ export default function ExtensionsOverview() {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<"24h" | "7d">("24h");
   const { isMvp } = useMvpMode();
+  const { added } = useMarketplace();
 
-  const visibleExtensions = isMvp ? EXTENSIONS.filter((e) => !e.isBulk) : EXTENSIONS;
-  const visibleUsage = isMvp ? USAGE_STATS.filter((u) => !EXTENSIONS.find((e) => e.id === u.extensionId)?.isBulk) : USAGE_STATS;
-  const visibleErrors = isMvp ? ERRORS.filter((e) => !EXTENSIONS.find((ex) => ex.id === e.extensionId)?.isBulk) : ERRORS;
+  const installed = installedDerived(added, isMvp);
+  const allExtensions: ExtensionSummary[] = [
+    ...EXTENSIONS,
+    ...installed.map((i) => ({ id: i.id, name: i.name, enabled: i.enabled, instances: 1, activeInstances: i.enabled ? 1 : 0, isBulk: i.ext.isBulk })),
+  ];
+  const allUsage: UsageStat[] = [
+    ...USAGE_STATS,
+    ...installed.map((i) => ({ extensionId: i.id, extensionName: i.name, ...derivedUsage(i.ext), errorRate: 0 })),
+  ];
+
+  const visibleExtensions = isMvp ? allExtensions.filter((e) => !e.isBulk) : allExtensions;
+  const visibleUsage = isMvp ? allUsage.filter((u) => !allExtensions.find((e) => e.id === u.extensionId)?.isBulk) : allUsage;
+  const visibleErrors = isMvp ? ERRORS.filter((e) => !allExtensions.find((ex) => ex.id === e.extensionId)?.isBulk) : ERRORS;
 
   const totalExtensions = visibleExtensions.length;
   const totalInstances = visibleExtensions.reduce((s, e) => s + e.instances, 0);
