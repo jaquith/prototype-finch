@@ -10,6 +10,8 @@ import Attributes from "./pages/Attributes";
 import InstanceOverview from "./pages/InstanceOverview";
 import OperatorList from "./pages/OperatorList";
 import OperatorEditor from "./pages/OperatorEditor";
+import Marketplace from "./pages/Marketplace";
+import { MarketplaceProvider } from "./contexts/MarketplaceContext";
 
 function IndexRoute() {
   const { isMvp } = useMvpMode();
@@ -28,6 +30,10 @@ const router = createBrowserRouter([
       {
         path: "extensions",
         element: <ModuleList />,
+      },
+      {
+        path: "marketplace",
+        element: <Marketplace />,
       },
       {
         path: "attributes",
@@ -61,7 +67,9 @@ function App() {
   return (
     <UIKitProvider>
       <MvpProvider>
-        <RouterProvider router={router} />
+        <MarketplaceProvider>
+          <RouterProvider router={router} />
+        </MarketplaceProvider>
       </MvpProvider>
     </UIKitProvider>
   );

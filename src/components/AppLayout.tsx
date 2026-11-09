@@ -84,6 +84,14 @@ export default function AppLayout() {
                 <>
                   <button
                     type="button"
+                    className={`sidebar-sub-item ${location.pathname === "/marketplace" ? "sidebar-sub-item-active" : ""}`}
+                    onClick={() => navigate("/marketplace")}
+                  >
+                    <i className="fas fa-shopping-bag sidebar-item-icon" aria-hidden="true" />
+                    Marketplace
+                  </button>
+                  <button
+                    type="button"
                     className={`sidebar-sub-item ${location.pathname === "/extensions" || location.pathname.startsWith("/modules/") ? "sidebar-sub-item-active" : ""}`}
                     onClick={() => navigate("/extensions")}
                   >

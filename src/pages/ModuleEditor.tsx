@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { getCatalogItem, isMarketplaceId } from "../data/marketplaceCatalog";
 import Button from "../components/SimpleButton";
 import Textbox from "../components/SimpleTextbox";
 import TextArea from "../components/SimpleTextArea";
@@ -254,12 +256,21 @@ export default function ModuleEditor() {
   const isTally = id === "10";
   const isNormalizeStrings = id === "11";
   const isRecency = id === "8";
+  const catalogItem = isMarketplaceId(id) ? getCatalogItem(id!) : undefined;
+  const { getAdded } = useMarketplace();
+  const addedRecord = catalogItem ? getAdded(catalogItem.id) : undefined;
+  const toParamDefs = (direction: "input" | "output"): ParamDef[] =>
+    (catalogItem?.params ?? [])
+      .filter((p) => p.direction === direction)
+      .map(({ id, variableName, type, description, staticValue }) => ({ id, variableName, type, description, staticValue }));
 
   const [name, setName] = useState(
-    isNew ? "" : isNormalize ? "Normalize Page URLs" : isTally ? "Tally Over Time" : isNormalizeStrings ? "Lowercase String" : isRecency ? "Recency Frequency Scorer" : "Compute Engagement Score"
+    catalogItem ? addedRecord?.overrides?.name || catalogItem.name : isNew ? "" : isNormalize ? "Normalize Page URLs" : isTally ? "Tally Over Time" : isNormalizeStrings ? "Lowercase String" : isRecency ? "Recency Frequency Scorer" : "Compute Engagement Score"
   );
   const [description, setDescription] = useState(
-    isNew
+    catalogItem
+      ? addedRecord?.overrides?.description || catalogItem.description
+      : isNew
       ? ""
       : isNormalize
         ? "Strips protocol, lowercases, and removes query params and hash fragments from page URLs."
@@ -274,10 +285,14 @@ export default function ModuleEditor() {
 
   // allowedPositions is now derived reactively — see useMemo below
 
-  const [extensionEnabled, setExtensionEnabled] = useState(!isNew);
+  const [extensionEnabled, setExtensionEnabled] = useState(
+    catalogItem ? (addedRecord?.enabled ?? true) : !isNew
+  );
 
   const [inputParams, setInputParams] = useState<ParamDef[]>(
-    isNew
+    catalogItem
+      ? toParamDefs("input")
+      : isNew
       ? []
       : isNormalize
         ? [
@@ -313,7 +328,9 @@ export default function ModuleEditor() {
   );
 
   const [outputParams, setOutputParams] = useState<ParamDef[]>(
-    isNew
+    catalogItem
+      ? toParamDefs("output")
+      : isNew
       ? []
       : isNormalize
         ? [{ id: "p3", variableName: "value", type: "String", description: "Cleaned and normalized value" }]
@@ -328,10 +345,10 @@ export default function ModuleEditor() {
               : [{ id: "p3", variableName: "score", type: "Number" }]
   );
 
-  const instanceCount = isNew ? 0 : isNormalize ? 2 : isTally ? 2 : isNormalizeStrings ? 2 : isRecency ? 4 : 3;
+  const instanceCount = catalogItem || isNew ? 0 : isNormalize ? 2 : isTally ? 2 : isNormalizeStrings ? 2 : isRecency ? 4 : 3;
 
   const [isBulkExtension, setIsBulkExtension] = useState(
-    isNormalize || isNormalizeStrings
+    catalogItem ? !!catalogItem.isBulk : isNormalize || isNormalizeStrings
   );
 
   // Derive allowed bulk types from the extension's param definitions (exclude static types)
@@ -353,7 +370,7 @@ export default function ModuleEditor() {
   ];
 
   const [supportedBulkTypes, setSupportedBulkTypes] = useState<string[]>(
-    isNormalize || isNormalizeStrings ? ["String"] : []
+    catalogItem ? catalogItem.supportedTypes || [] : isNormalize || isNormalizeStrings ? ["String"] : []
   );
 
   const handleToggleBulkType = (type: string) => {
@@ -368,7 +385,9 @@ export default function ModuleEditor() {
   >([]);
 
   const [outputAttributes, setOutputAttributes] = useState<OutputAttribute[]>(
-    isNew
+    catalogItem
+      ? toParamDefs("output").map((p) => ({ attribute: p.variableName, type: p.type }))
+      : isNew
       ? []
       : isNormalize
         ? [{ attribute: "value", type: "String" }]
@@ -384,7 +403,7 @@ export default function ModuleEditor() {
   );
 
   const [codeBody, setCodeBody] = useState(
-    isNew ? DEFAULT_NEW_CODE_BODY : isNormalize ? CODE_BODY_NORMALIZE : isTally ? CODE_BODY_TALLY : isNormalizeStrings ? CODE_BODY_NORMALIZE_STRINGS : isRecency ? CODE_BODY_RECENCY : CODE_BODY_ENGAGEMENT
+    catalogItem ? addedRecord?.overrides?.code || catalogItem.code : isNew ? DEFAULT_NEW_CODE_BODY : isNormalize ? CODE_BODY_NORMALIZE : isTally ? CODE_BODY_TALLY : isNormalizeStrings ? CODE_BODY_NORMALIZE_STRINGS : isRecency ? CODE_BODY_RECENCY : CODE_BODY_ENGAGEMENT
   );
 
   // Build the dynamic function signature + header comment from current params
