@@ -970,3 +970,93 @@
 .enr-cond-edit-row .enr-slot-wide {
   flex: 1 1 120px;
 }
+
+/* Extension editor: locked signature + value-based tests */
+.ext-code-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--gray-800, #6a6a6a);
+}
+
+.ext-code-fixed-block {
+  position: relative;
+  display: flex;
+  background: #181825;
+}
+
+.ext-code-fixed-block .op-code-lines {
+  padding: 8px 0;
+}
+
+.ext-code-fixed-block .op-code-fixed {
+  flex: 1;
+  padding-left: 12px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.ext-code-lock {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 11px;
+  color: #585b70;
+}
+
+.ext-tests {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ext-tests-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ext-tests-header .op-pass,
+.ext-tests-header .op-fail {
+  white-space: nowrap;
+}
+
+.ext-th-expect,
+.ext-td-expect {
+  border-left: 1px solid var(--gray-300, #d9d9d9);
+}
+
+.ext-td-expect {
+  vertical-align: top;
+}
+
+.ext-actual {
+  display: block;
+  margin-top: 4px;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--red-600, #c62828);
+  word-break: break-word;
+}
+
+.op-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal-600, #00838f);
+  cursor: pointer;
+}
+
+.op-link-btn:hover {
+  text-decoration: underline;
+}

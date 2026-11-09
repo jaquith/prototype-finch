@@ -11,7 +11,10 @@ import Badge from "../components/SimpleBadge";
 import SimpleSwitch from "../components/SimpleSwitch";
 import SimpleTooltip from "../components/SimpleTooltip";
 import { TYPE_ICONS, TYPE_COLORS } from "../constants/typeIcons";
-import { highlightJS } from "../utils/highlightJS";
+import ExtensionCodeField from "../components/ExtensionCodeField";
+import ExtensionTestTable from "../components/ExtensionTestTable";
+import { formatExtensionValue, runExtensionTest, type ExtensionTest } from "../utils/extensionRuntime";
+import "./Operators.css";
 import "./ModuleEditor.css";
 
 const MOCK_AUDIENCES = [
@@ -61,7 +64,7 @@ const CODE_BODY_NORMALIZE = `  // input.name  = attribute name (e.g. "page_url")
   // input.type  = guaranteed "String" by the framework
   // input.scope = "event", "visit", or "visitor"
 
-  let url = input.value.replace(/^https?:\/\//, "");
+  let url = input.value.replace(/^https?:\\/\\//, "");
   url = url.toLowerCase();
   url = url.split("?")[0];
   url = url.split("#")[0];
@@ -120,57 +123,51 @@ const CODE_BODY_RECENCY = `  // Compute recency-frequency score
 
 const DEFAULT_NEW_CODE_BODY = `  // Your extension logic here\n`;
 
-const TEST_PLACEHOLDER = `// Write tests for your extension code.
-// Available helpers:
-//   describe(name, fn)  — group related tests
-//   test(name, fn)      — define a test case
-//   expect(val)         — assert a value (.toBe, .toEqual, .toBeGreaterThan, etc.)
-//   mockAttributes(obj) — provide mock attribute values
-//   mockAudiences(obj)  — provide mock audience memberships
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-describe("Engagement Score", () => {
-  test("computes score from page views and purchases", () => {
-    const result = runExtension(mockAttributes({
-      page_view_count: 10,
-      purchase_count: 3,
-    }));
-    expect(result["engagement_score"]).toBe(11);
-  });
+const TESTS_ENGAGEMENT: ExtensionTest[] = [
+  { id: "t1", name: "computes score from page views and purchases", inputs: { viewCount: "10", purchaseCount: "3" }, expected: { score: "11" } },
+  { id: "t2", name: "handles zero values", inputs: { viewCount: "0", purchaseCount: "0" }, expected: { score: "0" } },
+  { id: "t3", name: "handles missing attributes", inputs: {}, expected: { score: "0" } },
+  { id: "t4", name: "caps score at 100", inputs: { viewCount: "100", purchaseCount: "50" }, expected: { score: "100" } },
+];
 
-  test("handles zero values", () => {
-    const result = runExtension(mockAttributes({
-      page_view_count: 0,
-      purchase_count: 0,
-    }));
-    expect(result["engagement_score"]).toBe(0);
-  });
-});
+const urlInputs = (value: string) => ({ name: "page_url", value, type: "String", scope: "event" });
+const TESTS_NORMALIZE: ExtensionTest[] = [
+  { id: "t1", name: "strips https://", inputs: urlInputs("https://Example.com/Page"), expected: { value: "example.com/page" } },
+  { id: "t2", name: "strips http://", inputs: urlInputs("http://Example.com/Page"), expected: { value: "example.com/page" } },
+  { id: "t3", name: "removes query parameters", inputs: urlInputs("https://example.com/page?foo=bar&baz=1"), expected: { value: "example.com/page" } },
+  { id: "t4", name: "removes hash fragments", inputs: urlInputs("https://example.com/page#top"), expected: { value: "example.com/page" } },
+];
 
-describe("Edge Cases", () => {
-  test("handles missing attributes gracefully", () => {
-    const result = runExtension(mockAttributes({}));
-    expect(result["engagement_score"]).toBe(0);
-  });
+const stringInputs = (value: string) => ({ name: "loyalty_tier", value, type: "String", scope: "visitor" });
+const TESTS_NORMALIZE_STRINGS: ExtensionTest[] = [
+  { id: "t1", name: "lowercases string value", inputs: stringInputs("Hello World"), expected: { value: "hello world" } },
+  { id: "t2", name: "trims whitespace", inputs: stringInputs("  hello  "), expected: { value: "hello" } },
+  { id: "t3", name: "leaves output unset when value is missing", inputs: stringInputs(""), expected: {} },
+];
 
-  test("caps score at 100", () => {
-    const result = runExtension(mockAttributes({
-      page_view_count: 100,
-      purchase_count: 50,
-    }));
-    expect(result["engagement_score"]).toBeLessThanOrEqual(100);
-  });
-});
-`;
-
-interface TestCase {
-  id: string;
-  name: string;
-  suite: string;
-  status: "idle" | "pass" | "fail";
-  duration: number;
-  error?: string;
-  code: string;
+// Timeline timestamps are relative to when the editor opens so the rolling window stays meaningful.
+function buildTallyTests(): ExtensionTest[] {
+  const at = (daysAgo: number, tally: Record<string, number>) => ({ timestamp: Date.now() - daysAgo * DAY_MS, tally });
+  const json = (v: unknown) => JSON.stringify(v);
+  return [
+    { id: "t1", name: "includes entries within the window", inputs: { timeline: json([at(2, { shoes: 3, hats: 1 }), at(5, { shoes: 1, jackets: 2 })]), visitTally: json({ shoes: 1 }), windowDays: "10" }, expected: { masterTally: json({ shoes: 5, hats: 1, jackets: 2 }) } },
+    { id: "t2", name: "excludes entries outside the window", inputs: { timeline: json([at(2, { shoes: 3 }), at(15, { hats: 100 })]), visitTally: "{}", windowDays: "10" }, expected: { masterTally: json({ shoes: 3 }) } },
+    { id: "t3", name: "merges current visit tally", inputs: { timeline: json([at(1, { electronics: 2 })]), visitTally: json({ electronics: 3, books: 1 }), windowDays: "10" }, expected: { masterTally: json({ electronics: 5, books: 1 }) } },
+    { id: "t4", name: "first visit with empty timeline", inputs: { timeline: "[]", visitTally: json({ shoes: 2, hats: 5 }), windowDays: "10" }, expected: { masterTally: json({ shoes: 2, hats: 5 }) } },
+    { id: "t5", name: "no data yields an empty tally", inputs: { timeline: "[]", visitTally: "{}", windowDays: "10" }, expected: { masterTally: "{}" } },
+  ];
 }
+
+function buildRecencyTests(): ExtensionTest[] {
+  return [
+    { id: "t1", name: "recent and frequent scores 100", inputs: { lastDate: new Date().toISOString(), count: "10", windowDays: "30", categoryName: "shoes" }, expected: { rfScore: "100" } },
+    { id: "t2", name: "stale activity scores on frequency only", inputs: { lastDate: "2000-01-01", count: "5", windowDays: "30", categoryName: "shoes" }, expected: { rfScore: "20" } },
+  ];
+}
+
+const CODE_FOOTER = "  return output;\n}";
 
 const TYPE_BADGE_MAP: Record<string, "neutral" | "informative" | "success" | "warn"> = {
   Number: "informative",
@@ -426,27 +423,8 @@ export default function ModuleEditor() {
     return lines.join("\n");
   }, [inputParams, outputParams]);
 
-  const fullCode = useMemo(() => {
-    const sig = buildCodeSignature();
-    return `${sig}\nfunction run(input, output) {\n${codeBody}  return output;\n}\n`;
-  }, [buildCodeSignature, codeBody]);
-
-  // When the user edits the textarea, extract just the body portion
-  const handleCodeChange = useCallback((raw: string) => {
-    const fnHeaderMatch = raw.match(/^function\s+run\s*\(\s*input\s*,\s*output\s*\)\s*\{/m);
-    if (fnHeaderMatch) {
-      const startIdx = raw.indexOf(fnHeaderMatch[0]) + fnHeaderMatch[0].length;
-      const lastBrace = raw.lastIndexOf("}");
-      if (lastBrace > startIdx) {
-        let body = raw.substring(startIdx, lastBrace);
-        // Strip the hardcoded return output; line so it doesn't duplicate
-        body = body.replace(/\s*return\s+output\s*;\s*$/, "\n");
-        setCodeBody(body);
-        return;
-      }
-    }
-    setCodeBody(raw);
-  }, []);
+  const codeHeader = useMemo(() => `${buildCodeSignature()}\nfunction run(input, output) {`, [buildCodeSignature]);
+  const codeLineCount = codeHeader.split("\n").length + codeBody.split("\n").length + CODE_FOOTER.split("\n").length;
 
   // Type-change warning state (when a type edit would remove allowed positions)
   const [typeChangeWarning, setTypeChangeWarning] = useState<{
@@ -457,360 +435,51 @@ export default function ModuleEditor() {
     affectedInstances: { name: string; position: string }[];
   } | null>(null);
 
-  const testsEngagement: TestCase[] = [
-    {
-      id: "t1",
-      suite: "Engagement Score",
-      name: "computes score from page views and purchases",
-      status: "idle",
-      duration: 0,
-      code: `const result = runExtension(mockAttributes({\n  page_view_count: 10,\n  purchase_count: 3,\n}));\nexpect(result["engagement_score"]).toBe(11);`,
-    },
-    {
-      id: "t2",
-      suite: "Engagement Score",
-      name: "handles zero values",
-      status: "idle",
-      duration: 0,
-      code: `const result = runExtension(mockAttributes({\n  page_view_count: 0,\n  purchase_count: 0,\n}));\nexpect(result["engagement_score"]).toBe(0);`,
-    },
-    {
-      id: "t3",
-      suite: "Edge Cases",
-      name: "handles missing attributes gracefully",
-      status: "idle",
-      duration: 0,
-      code: `const result = runExtension(mockAttributes({}));\nexpect(result["engagement_score"]).toBe(0);`,
-    },
-    {
-      id: "t4",
-      suite: "Edge Cases",
-      name: "caps score at 100",
-      status: "idle",
-      duration: 0,
-      code: `const result = runExtension(mockAttributes({\n  page_view_count: 100,\n  purchase_count: 50,\n}));\nexpect(result["engagement_score"]).toBeLessThanOrEqual(100);`,
-    },
-  ];
-
-  const testsTally: TestCase[] = [
-    {
-      id: "t1",
-      suite: "Rolling Window",
-      name: "includes entries within the time window",
-      status: "idle",
-      duration: 0,
-      code: `const now = Date.now();
-const result = run({
-  windowDays: 10,
-  timeline: [
-    { timestamp: now - 2 * 86400000, tally: { shoes: 3, hats: 1 } },
-    { timestamp: now - 5 * 86400000, tally: { shoes: 1, jackets: 2 } },
-  ],
-  visitTally: { shoes: 1 },
-}, {});
-expect(result.masterTally.shoes).toBe(5);
-expect(result.masterTally.hats).toBe(1);`,
-    },
-    {
-      id: "t2",
-      suite: "Rolling Window",
-      name: "excludes entries outside the time window",
-      status: "idle",
-      duration: 0,
-      code: `const now = Date.now();
-const result = run({
-  windowDays: 10,
-  timeline: [
-    { timestamp: now - 2 * 86400000, tally: { shoes: 3 } },
-    { timestamp: now - 15 * 86400000, tally: { hats: 100 } },
-  ],
-  visitTally: {},
-}, {});
-expect(result.masterTally.shoes).toBe(3);
-expect(result.masterTally.hats).toBeUndefined();`,
-    },
-    {
-      id: "t3",
-      suite: "Visit Tally Merge",
-      name: "merges current visit tally into master",
-      status: "idle",
-      duration: 0,
-      code: `const now = Date.now();
-const result = run({
-  windowDays: 10,
-  timeline: [
-    { timestamp: now - 1 * 86400000, tally: { electronics: 2 } },
-  ],
-  visitTally: { electronics: 3, books: 1 },
-}, {});
-expect(result.masterTally.electronics).toBe(5);
-expect(result.masterTally.books).toBe(1);`,
-    },
-    {
-      id: "t4",
-      suite: "Visit Tally Merge",
-      name: "works with empty timeline (first visit)",
-      status: "idle",
-      duration: 0,
-      code: `const result = run({
-  windowDays: 10,
-  timeline: [],
-  visitTally: { shoes: 2, hats: 5 },
-}, {});
-expect(result.masterTally.shoes).toBe(2);
-expect(result.masterTally.hats).toBe(5);`,
-    },
-    {
-      id: "t5",
-      suite: "Edge Cases",
-      name: "handles no data gracefully",
-      status: "idle",
-      duration: 0,
-      code: `const result = run({
-  windowDays: 10,
-  timeline: [],
-  visitTally: {},
-}, {});
-expect(result.masterTally).toEqual({});`,
-    },
-    {
-      id: "t6",
-      suite: "Edge Cases",
-      name: "handles tied categories in tally correctly",
-      status: "idle",
-      duration: 0,
-      code: `const now = Date.now();
-const result = run({
-  windowDays: 10,
-  timeline: [
-    { timestamp: now - 1 * 86400000, tally: { shoes: 3, hats: 3 } },
-  ],
-  visitTally: {},
-}, {});
-expect(result.masterTally.shoes).toBe(3);
-expect(result.masterTally.hats).toBe(3);`,
-    },
-  ];
-
-  const testsNormalize: TestCase[] = [
-    {
-      id: "t1",
-      suite: "Protocol Stripping",
-      name: "strips https://",
-      status: "idle",
-      duration: 0,
-      code: `const result = run({ pageUrl: "https://Example.com/Page" }, {});\nexpect(result.pageUrl).toBe("example.com/page");`,
-    },
-    {
-      id: "t2",
-      suite: "Protocol Stripping",
-      name: "strips http://",
-      status: "idle",
-      duration: 0,
-      code: `const result = run({ pageUrl: "http://Example.com/Page" }, {});\nexpect(result.pageUrl).toBe("example.com/page");`,
-    },
-    {
-      id: "t3",
-      suite: "Query & Fragment Removal",
-      name: "removes query parameters",
-      status: "idle",
-      duration: 0,
-      code: `const result = run({ pageUrl: "https://example.com/page?foo=bar&baz=1" }, {});\nexpect(result.pageUrl).toBe("example.com/page");`,
-    },
-  ];
-
-  const testsNormalizeStrings: TestCase[] = [
-    {
-      id: "t1",
-      suite: "String Normalization",
-      name: "lowercases string value",
-      status: "idle",
-      duration: 0,
-      code: `const result = run({ value: "Hello World" }, {});\nexpect(result.value).toBe("hello world");`,
-    },
-    {
-      id: "t2",
-      suite: "String Normalization",
-      name: "trims whitespace",
-      status: "idle",
-      duration: 0,
-      code: `const result = run({ value: "  hello  " }, {});\nexpect(result.value).toBe("hello");`,
-    },
-    {
-      id: "t3",
-      suite: "Edge Cases",
-      name: "passes through null/undefined",
-      status: "idle",
-      duration: 0,
-      code: `const result = run({ value: null }, {});\nexpect(result.value).toBeUndefined();`,
-    },
-    {
-      id: "t4",
-      suite: "Edge Cases",
-      name: "passes through non-string values",
-      status: "idle",
-      duration: 0,
-      code: `const result = run({ value: 42 }, {});\nexpect(result.value).toBeUndefined();`,
-    },
-  ];
-
-  const initialTests: TestCase[] = isNew ? [] : isNormalize ? testsNormalize : isTally ? testsTally : isNormalizeStrings ? testsNormalizeStrings : testsEngagement;
-
-  const [testCases, setTestCases] = useState<TestCase[]>(initialTests);
-  const [testStatus, setTestStatus] = useState<"idle" | "running" | "done">("idle");
-  const [expandedTests, setExpandedTests] = useState<Set<string>>(new Set());
-  const [testFilter, setTestFilter] = useState<"all" | "passed" | "failed">("all");
+  const [testCases, setTestCases] = useState<ExtensionTest[]>(() =>
+    isNew || catalogItem ? [] : isNormalize ? TESTS_NORMALIZE : isTally ? buildTallyTests() : isNormalizeStrings ? TESTS_NORMALIZE_STRINGS : isRecency ? buildRecencyTests() : TESTS_ENGAGEMENT
+  );
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ code: true });
   const toggle = (key: string) => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const toggleExpanded = (id: string) => {
-    setExpandedTests((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const updateTestCode = (id: string, newCode: string) => {
-    setTestCases((prev) => prev.map((t) => t.id === id ? { ...t, code: newCode } : t));
-  };
-
-  const updateTestName = (id: string, newName: string) => {
-    setTestCases((prev) => prev.map((t) => t.id === id ? { ...t, name: newName } : t));
-  };
-
-  const handleAddTest = (suite?: string) => {
-    const newId = `t${Date.now()}`;
-    const newTest: TestCase = {
-      id: newId,
-      suite: suite || suiteNames[0] || "New Suite",
-      name: "new test",
-      status: "idle",
-      duration: 0,
-      code: `const result = runExtension(mockAttributes({\n  // set up your test attributes here\n}));\nexpect(result["engagement_score"]).toBe(0);`,
-    };
-    setTestCases((prev) => [...prev, newTest]);
-    setExpandedTests((prev) => new Set([...prev, newId]));
-  };
-
-  const handleDeleteTest = (id: string) => {
-    setTestCases((prev) => prev.filter((t) => t.id !== id));
-    setExpandedTests((prev) => { const next = new Set(prev); next.delete(id); return next; });
-  };
-
-  const handleAddSuite = () => {
-    const newId = `t${Date.now()}`;
-    const suiteName = `New Suite ${suiteNames.length + 1}`;
-    const newTest: TestCase = {
-      id: newId,
-      suite: suiteName,
-      name: "new test",
-      status: "idle",
-      duration: 0,
-      code: `const result = runExtension(mockAttributes({\n  // set up your test attributes here\n}));\nexpect(result["engagement_score"]).toBe(0);`,
-    };
-    setTestCases((prev) => [...prev, newTest]);
-    setExpandedTests((prev) => new Set([...prev, newId]));
-  };
-
-  const handleRenameSuite = (oldName: string, newName: string) => {
-    if (!newName.trim() || newName === oldName) return;
-    setTestCases((prev) => prev.map((t) => t.suite === oldName ? { ...t, suite: newName } : t));
-  };
-
-  const handleDeleteSuite = (suiteName: string) => {
-    setTestCases((prev) => prev.filter((t) => t.suite !== suiteName));
-  };
-
-  const handleMoveTest = (testId: string, targetSuite: string) => {
-    setTestCases((prev) => prev.map((t) => t.id === testId ? { ...t, suite: targetSuite } : t));
-  };
-
-  const isEngagement = !isNew && !isNormalize && !isTally && !isNormalizeStrings && !isRecency;
-
-  const handleRunTests = () => {
-    setTestStatus("running");
-    setTestCases((prev) => prev.map((t) => ({ ...t, status: "idle" as const, duration: 0, error: undefined })));
-    // Simulate test execution with staggered results
-    setTimeout(() => {
-      if (isEngagement) {
-        // Compute Engagement Score: t3 and t4 fail
-        setTestCases((prev) => prev.map((t) => {
-          if (t.id === "t3") return {
-            ...t, status: "fail" as const, duration: 3,
-            error: 'Expected: 0\nReceived: NaN\n\n  at runExtension (extension.js:3:15)\n  > expect(result["engagement_score"]).toBe(0);',
-          };
-          if (t.id === "t4") return {
-            ...t, status: "fail" as const, duration: 1,
-            error: 'Expected: \u2264 100\nReceived: 150\n\n  > expect(result["engagement_score"]).toBeLessThanOrEqual(100);',
-          };
-          return { ...t, status: "pass" as const, duration: Math.floor(Math.random() * 3) + 1 };
-        }));
-        setExpandedTests(new Set(["t3", "t4"]));
-      } else {
-        // All other extensions: all tests pass
-        setTestCases((prev) => prev.map((t) => ({
-          ...t, status: "pass" as const, duration: Math.floor(Math.random() * 3) + 1,
-        })));
-      }
-      setTestStatus("done");
-    }, 800);
-  };
-
-  const handleRunSingleTest = (id: string) => {
-    setTestCases((prev) => prev.map((t) => t.id === id ? { ...t, status: "idle" as const, duration: 0, error: undefined } : t));
-    setTimeout(() => {
-      setTestCases((prev) => prev.map((t) => {
-        if (t.id !== id) return t;
-        if (isEngagement) {
-          if (id === "t3") return { ...t, status: "fail" as const, duration: 3, error: 'Expected: 0\nReceived: NaN\n\n  > expect(result["engagement_score"]).toBe(0);' };
-          if (id === "t4") return { ...t, status: "fail" as const, duration: 1, error: 'Expected: \u2264 100\nReceived: 150\n\n  > expect(result["engagement_score"]).toBeLessThanOrEqual(100);' };
-        }
-        return { ...t, status: "pass" as const, duration: Math.floor(Math.random() * 3) + 1 };
-      }));
-    }, 400);
-  };
-
-  const totalTests = testCases.length;
-  const passedTests = testCases.filter((t) => t.status === "pass").length;
-  const failedTests = testCases.filter((t) => t.status === "fail").length;
-  const totalDuration = testCases.reduce((d, t) => d + t.duration, 0);
-
-  // Group tests by suite
-  const suiteNames = [...new Set(testCases.map((t) => t.suite))];
-
-  const filteredTests = testCases.filter((t) => {
-    if (testFilter === "passed") return t.status === "pass";
-    if (testFilter === "failed") return t.status === "fail";
-    return true;
-  });
+  const testInputs = useMemo(() => inputParams.filter((p) => p.variableName), [inputParams]);
+  const testOutputs = useMemo(() => outputParams.filter((p) => p.variableName), [outputParams]);
+  const testResults = useMemo(
+    () => testCases.map((t) => runExtensionTest(codeBody, testInputs, testOutputs, t)),
+    [codeBody, testCases, testInputs, testOutputs]
+  );
+  const failedTests = useMemo(
+    () =>
+      testCases.flatMap((t, i) => {
+        const r = testResults[i];
+        if (r.ok && r.pass) return [];
+        const reason = !r.ok
+          ? r.error
+          : r.checks
+              .filter((c) => !c.pass)
+              .map((c) => `output.${c.name}: expected ${formatExtensionValue(c.expected)}, got ${formatExtensionValue(c.actual)}`)
+              .join("; ");
+        return [{ test: t, reason }];
+      }),
+    [testCases, testResults]
+  );
 
   // AI Assistant callbacks for code & tests context
   const getEditorResponse = useCallback((msg: string) => {
     const lower = msg.toLowerCase();
-    if (lower.includes("add") && lower.includes("test") && (lower.includes("edge") || lower.includes("case"))) {
-      return { text: "I'd suggest adding this edge case test to your \"Edge Cases\" suite:", action: { type: "add-test", label: "Add test: handles negative values", detail: `test("handles negative values", () => {\n  const result = run(\n    { viewCount: -5, purchaseCount: -1 }, {}\n  );\n  expect(result.score).toBe(0);\n});`, id: `action-${Date.now()}` } };
-    }
-    if (lower.includes("add") && lower.includes("test") && (lower.includes("bound") || lower.includes("overflow"))) {
-      return { text: "Here's a boundary test I'd recommend adding:", action: { type: "add-test", label: "Add test: handles maximum values", detail: `test("handles max values", () => {\n  const result = run(\n    { viewCount: Number.MAX_SAFE_INTEGER,\n      purchaseCount: 0 }, {}\n  );\n  expect(result.score).toBeDefined();\n});`, id: `action-${Date.now()}` } };
-    }
-    if (lower.includes("run") && lower.includes("test")) {
-      return { text: "I can run all your tests for you right now.", action: { type: "run-tests", label: "Run all tests", detail: `Will execute ${testCases.length} test(s) across ${suiteNames.length} suite(s).`, id: `action-${Date.now()}` } };
+    if (lower.includes("add") && lower.includes("test")) {
+      return { text: "I'd add a test with every input left blank, to make sure missing attributes don't produce a bad output:", action: { type: "add-test", label: "Add test: all inputs missing", detail: "Inputs: all blank (missing)\nExpected outputs: not set", id: `action-${Date.now()}` } };
     }
     if (lower.includes("delete") && lower.includes("fail")) {
-      const failed = testCases.filter((t) => t.status === "fail");
-      if (failed.length > 0) {
-        return { text: `I found ${failed.length} failing test(s). Want me to remove them?`, action: { type: "delete-failed", label: `Delete ${failed.length} failing test(s)`, detail: failed.map((t) => `\u2022 ${t.suite} > ${t.name}`).join("\n"), id: `action-${Date.now()}` } };
+      if (failedTests.length > 0) {
+        return { text: `I found ${failedTests.length} failing test(s). Want me to remove them?`, action: { type: "delete-failed", label: `Delete ${failedTests.length} failing test(s)`, detail: failedTests.map((f) => `\u2022 ${f.test.name}`).join("\n"), id: `action-${Date.now()}` } };
       }
-      return { text: "No failing tests found. All tests are either passing or haven't been run yet." };
+      return { text: "No failing tests found." };
     }
     if (lower.includes("fail") || lower.includes("debug") || lower.includes("why") || lower.includes("broken")) {
-      const failed = testCases.filter((t) => t.status === "fail");
-      if (failed.length > 0) {
-        return { text: `You have ${failed.length} failing test(s):\n\n${failed.map((t) => `\u2022 **${t.name}**\n  ${t.error?.split("\n")[0] || "Unknown error"}`).join("\n")}\n\nCheck that your code logic matches the assertions. Common issues:\n1. Missing null/undefined guards on inputs\n2. Incorrect formula producing unexpected values\n3. Assertions using wrong comparison (.toBe vs .toEqual)` };
+      if (failedTests.length > 0) {
+        return { text: `You have ${failedTests.length} failing test(s):\n\n${failedTests.map((f) => `\u2022 **${f.test.name}**\n  ${f.reason}`).join("\n")}\n\nEither the function body needs a fix, or the expected value in the test is wrong.` };
       }
-      return { text: "No failing tests at the moment. Run your tests first to see if anything fails." };
+      return { text: "All tests are passing." };
     }
     if (lower.includes("error") || lower.includes("try") || lower.includes("catch")) {
       return { text: "Here's a try/catch wrapper you could add to your code:\n\n```\ntry {\n  // your logic here\n} catch (e) {\n  output.error = e.message;\n}\n```\n\nThis catches runtime errors and writes the message to an `error` output variable." };
@@ -818,28 +487,22 @@ expect(result.masterTally.hats).toBe(3);`,
     if (lower.includes("cap") || lower.includes("max") || lower.includes("limit")) {
       return { text: "To cap the score at 100, add this before setting the output:\n\n```\nconst capped = Math.min(score, 100);\noutput.score = capped;\n```" };
     }
-    if (lower.includes("valid") || lower.includes("check") || lower.includes("guard")) {
-      return { text: "You can add input validation like this:\n\n```\nif (typeof input.viewCount !== 'number') {\n  output.score = 0;\n  return output;\n}\n```\n\nThis guards against missing or non-numeric inputs." };
-    }
     if (lower.includes("explain") || lower.includes("what does") || lower.includes("how does")) {
-      return { text: "This extension takes input values, applies a weighted formula to compute an engagement score, and writes the result to the output object. The `return output` at the end is required so the platform can capture your results." };
+      return { text: "This extension reads values from `input`, applies its logic, and writes results to `output`. The function signature and `return output` are generated from the extension's inputs and outputs, so you only edit the body." };
     }
-    return { text: "I can help with both your **extension code** and **tests**. Try asking me to:\n\n**Code:**\n\u2022 Add error handling\n\u2022 Validate inputs\n\u2022 Explain this code\n\n**Tests:**\n\u2022 Add edge case tests\n\u2022 Run all tests\n\u2022 Why is my test failing?\n\u2022 Delete failing tests" };
-  }, [testCases, suiteNames]);
+    return { text: "I can help with both your **extension code** and **tests**. Try asking me to:\n\n**Code:**\n\u2022 Add error handling\n\u2022 Explain this code\n\n**Tests:**\n\u2022 Add a test\n\u2022 Why is my test failing?\n\u2022 Delete failing tests" };
+  }, [failedTests]);
 
   const handleEditorAction = useCallback((action: { type: string; label: string; detail: string; id: string }, accepted: boolean) => {
     if (!accepted) return;
     if (action.type === "add-test") {
-      const newId = `t${Date.now()}`;
-      setTestCases((prev) => [...prev, { id: newId, suite: suiteNames[0] || "New Suite", name: action.label.replace("Add test: ", ""), status: "idle" as const, duration: 0, code: action.detail }]);
-      setExpandedTests((prev) => new Set([...prev, newId]));
-    } else if (action.type === "run-tests") {
-      handleRunTests();
+      setTestCases((prev) => [...prev, { id: `t${Date.now()}`, name: action.label.replace("Add test: ", ""), inputs: {}, expected: {} }]);
+      setCollapsed((prev) => ({ ...prev, tests: false }));
     } else if (action.type === "delete-failed") {
-      const failedIds = testCases.filter((t) => t.status === "fail").map((t) => t.id);
-      setTestCases((prev) => prev.filter((t) => !failedIds.includes(t.id)));
+      const failedIds = new Set(failedTests.map((f) => f.test.id));
+      setTestCases((prev) => prev.filter((t) => !failedIds.has(t.id)));
     }
-  }, [suiteNames, testCases, handleRunTests]);
+  }, [failedTests]);
 
   const positionLabels: Record<string, string> = {
     preEvent: "Pre-Event",
@@ -1490,252 +1153,35 @@ expect(result.masterTally.hats).toBe(3);`,
             <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: `Generate or improve code for the ${name} extension` } }))}>
               <i className="fas fa-magic" aria-hidden="true" /> Generate or improve code
             </button>
-            <span className="editor-code-line-count">{fullCode.split("\n").length} lines</span>
+            <span className="editor-code-line-count">{codeLineCount} lines</span>
           </div>
         </div>
-        {!collapsed.code && <div className="editor-code-wrapper">
-          <div className="editor-code-lines" aria-hidden="true">
-            {fullCode.split("\n").map((_, i) => (
-              <span key={i}>{i + 1}</span>
-            ))}
-          </div>
-          <div className="editor-code-body">
-            <pre className="editor-code-highlight" aria-hidden="true" dangerouslySetInnerHTML={{ __html: highlightJS(fullCode) + "\n" }} />
-            <textarea
-              className="editor-code-area"
-              value={fullCode}
-              onChange={(e) => handleCodeChange(e.target.value)}
-              onScroll={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                const highlight = target.previousElementSibling as HTMLElement;
-                const lines = target.parentElement?.previousElementSibling as HTMLElement;
-                if (highlight) {
-                  highlight.scrollTop = target.scrollTop;
-                  highlight.scrollLeft = target.scrollLeft;
-                }
-                if (lines) {
-                  lines.scrollTop = target.scrollTop;
-                }
-              }}
-              spellCheck={false}
-            />
-          </div>
-        </div>}
+        {!collapsed.code && (
+          <>
+            <p className="ext-code-note">
+              <i className="fas fa-lock" aria-hidden="true" /> The signature and <code>return output</code> are generated from this extension&apos;s inputs and outputs. Only the function body is editable.
+            </p>
+            <ExtensionCodeField header={codeHeader} footer={CODE_FOOTER} value={codeBody} onChange={setCodeBody} />
+          </>
+        )}
       </section>
 
-      {/* Test Explorer */}
+      {/* Tests */}
       <section className="editor-section">
-        <div className="test-explorer-toolbar">
-          <div className="test-explorer-toolbar-left" onClick={() => toggle("tests")} style={{ cursor: "pointer" }}>
-            <h2 className="editor-section-title">
-              <i className={`fas fa-chevron-${collapsed.tests ? "right" : "down"}`} aria-hidden="true" />
-              <i className="fas fa-flask" aria-hidden="true" /> Tests
-            </h2>
-            {testStatus === "done" && (
-              <div className="test-toolbar-counts">
-                <span className="test-toolbar-count test-toolbar-pass">
-                  <i className="fas fa-check-circle" aria-hidden="true" /> {passedTests}
-                </span>
-                <span className="test-toolbar-count test-toolbar-fail">
-                  <i className="fas fa-times-circle" aria-hidden="true" /> {failedTests}
-                </span>
-                <span className="test-toolbar-duration">{totalDuration}ms</span>
-              </div>
-            )}
-          </div>
-          <div className="test-explorer-toolbar-right">
-            {testStatus === "done" && (
-              <div className="test-filter-buttons">
-                <button
-                  type="button"
-                  className={`test-filter-btn ${testFilter === "all" ? "test-filter-btn-active" : ""}`}
-                  onClick={() => setTestFilter("all")}
-                >All</button>
-                <button
-                  type="button"
-                  className={`test-filter-btn ${testFilter === "passed" ? "test-filter-btn-active" : ""}`}
-                  onClick={() => setTestFilter("passed")}
-                ><i className="fas fa-check" aria-hidden="true" /> Passed</button>
-                <button
-                  type="button"
-                  className={`test-filter-btn ${testFilter === "failed" ? "test-filter-btn-active" : ""}`}
-                  onClick={() => setTestFilter("failed")}
-                ><i className="fas fa-times" aria-hidden="true" /> Failed</button>
-              </div>
-            )}
+        <div className="editor-section-header editor-section-header-collapsible" onClick={() => toggle("tests")}>
+          <h2 className="editor-section-title">
+            <i className={`fas fa-chevron-${collapsed.tests ? "right" : "down"}`} aria-hidden="true" />
+            <i className="fas fa-flask" aria-hidden="true" /> Tests
+          </h2>
+          <div className="editor-section-header-actions" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: `Improve tests for the ${name} extension` } }))}>
               <i className="fas fa-magic" aria-hidden="true" /> Improve tests
             </button>
-            <Button type={testStatus === "running" ? "secondary" : "border"} onClick={handleRunTests} attrProps={{ className: "editor-btn-small" }}>
-              {testStatus === "running" ? (
-                <><i className="fas fa-spinner fa-spin" aria-hidden="true" /> <span>Running...</span></>
-              ) : (
-                <><i className="fas fa-play" aria-hidden="true" /> <span>Run All</span></>
-              )}
-            </Button>
           </div>
         </div>
-
-        {!collapsed.tests && <>{testStatus === "done" && failedTests > 0 && (
-          <div className="test-summary-bar test-summary-bar-fail">
-            <i className="fas fa-exclamation-triangle" aria-hidden="true" />
-            {failedTests} test{failedTests > 1 ? "s" : ""} failed
-          </div>
+        {!collapsed.tests && (
+          <ExtensionTestTable inputs={testInputs} outputs={testOutputs} tests={testCases} results={testResults} onChange={setTestCases} />
         )}
-        {testStatus === "done" && failedTests === 0 && (
-          <div className="test-summary-bar test-summary-bar-pass">
-            <i className="fas fa-check-circle" aria-hidden="true" />
-            All {totalTests} tests passed
-          </div>
-        )}
-
-        <div className="test-explorer-list">
-          {suiteNames.map((suiteName) => {
-            const suiteTests = filteredTests.filter((t) => t.suite === suiteName);
-            if (suiteTests.length === 0) return null;
-            const suitePass = suiteTests.every((t) => t.status === "pass");
-            const suiteFail = suiteTests.some((t) => t.status === "fail");
-            return (
-              <div key={suiteName} className="test-suite">
-                <div className="test-suite-header">
-                  {suiteFail ? (
-                    <i className="fas fa-times-circle test-icon-fail" aria-hidden="true" />
-                  ) : suitePass ? (
-                    <i className="fas fa-check-circle test-icon-pass" aria-hidden="true" />
-                  ) : (
-                    <i className="fas fa-circle test-icon-idle" aria-hidden="true" />
-                  )}
-                  <span
-                    className="test-suite-name"
-                    contentEditable
-                    suppressContentEditableWarning
-                    onBlur={(e) => handleRenameSuite(suiteName, e.currentTarget.textContent || suiteName)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
-                  >{suiteName}</span>
-                  <span className="test-suite-count">{suiteTests.length} test{suiteTests.length > 1 ? "s" : ""}</span>
-                  <button
-                    type="button"
-                    className="test-suite-add-btn"
-                    onClick={() => handleAddTest(suiteName)}
-                    title="Add test to this suite"
-                  >
-                    <i className="fas fa-plus" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className="test-suite-delete-btn"
-                    onClick={() => handleDeleteSuite(suiteName)}
-                    title="Delete this suite and all its tests"
-                  >
-                    <i className="fas fa-trash" aria-hidden="true" />
-                  </button>
-                </div>
-                {suiteTests.map((tc) => {
-                  const isExpanded = expandedTests.has(tc.id);
-                  return (
-                    <div key={tc.id} className={`test-case ${tc.status === "fail" ? "test-case-fail" : tc.status === "pass" ? "test-case-pass" : ""}`}>
-                      <div
-                        className="test-case-row"
-                        onClick={() => toggleExpanded(tc.id)}
-                        role="button"
-                        tabIndex={0}
-                        aria-expanded={isExpanded}
-                      >
-                        <i className={`fas fa-chevron-${isExpanded ? "down" : "right"} test-case-chevron`} aria-hidden="true" />
-                        {tc.status === "pass" ? (
-                          <i className="fas fa-check-circle test-icon-pass" aria-hidden="true" />
-                        ) : tc.status === "fail" ? (
-                          <i className="fas fa-times-circle test-icon-fail" aria-hidden="true" />
-                        ) : (
-                          <i className="fas fa-circle test-icon-idle" aria-hidden="true" />
-                        )}
-                        <span className="test-case-name">{tc.name}</span>
-                        {suiteNames.length > 1 && (
-                          <select
-                            className="test-case-move-select"
-                            value={tc.suite}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => { e.stopPropagation(); handleMoveTest(tc.id, e.target.value); }}
-                            title="Move to suite"
-                          >
-                            {suiteNames.map((s) => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                          </select>
-                        )}
-                        {tc.duration > 0 && <span className="test-case-duration">{tc.duration}ms</span>}
-                        <button
-                          type="button"
-                          className="test-case-run-btn"
-                          onClick={(e) => { e.stopPropagation(); handleRunSingleTest(tc.id); }}
-                          title="Run this test"
-                        >
-                          <i className="fas fa-play" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          className="test-case-delete-btn"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteTest(tc.id); }}
-                          title="Delete this test"
-                        >
-                          <i className="fas fa-trash" aria-hidden="true" />
-                        </button>
-                      </div>
-                      {isExpanded && (
-                        <div className="test-case-expanded">
-                          <div className="test-case-code-wrapper">
-                            <div className="editor-code-lines" aria-hidden="true">
-                              {(tc.code || "").split("\n").map((_: string, i: number) => (
-                                <span key={i}>{i + 1}</span>
-                              ))}
-                            </div>
-                            <div className="editor-code-body">
-                              <pre className="editor-code-highlight" aria-hidden="true" dangerouslySetInnerHTML={{ __html: highlightJS(tc.code || "") + "\n" }} />
-                              <textarea
-                                className="editor-code-area"
-                                value={tc.code}
-                                onChange={(e) => updateTestCode(tc.id, e.target.value)}
-                                onScroll={(e) => {
-                                  const target = e.target as HTMLTextAreaElement;
-                                  const highlight = target.previousElementSibling as HTMLElement;
-                                  const lines = target.parentElement?.previousElementSibling as HTMLElement;
-                                  if (highlight) {
-                                    highlight.scrollTop = target.scrollTop;
-                                    highlight.scrollLeft = target.scrollLeft;
-                                  }
-                                  if (lines) {
-                                    lines.scrollTop = target.scrollTop;
-                                  }
-                                }}
-                                spellCheck={false}
-                              />
-                            </div>
-                          </div>
-                          {tc.error && (
-                            <div className="test-case-error">
-                              <div className="test-case-error-label">
-                                <i className="fas fa-exclamation-triangle" aria-hidden="true" /> Error Output
-                              </div>
-                              <pre>{tc.error}</pre>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="test-explorer-add">
-          <Button type="border" onClick={() => handleAddSuite()} attrProps={{ className: "editor-btn-small" }}>
-            <i className="fas fa-plus" aria-hidden="true" />
-            <span>Add Test Suite</span>
-          </Button>
-        </div>
-        </>}
       </section>
 
       {/* Type/Scope Change Warning Dialog */}
