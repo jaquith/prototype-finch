@@ -5,12 +5,54 @@ export interface ExtensionParam {
 
 export interface ExtensionTest {
   id: string;
+  suite?: string;
   name: string;
   inputs: Record<string, string>;
   expected: Record<string, string>;
 }
 
+export interface TestVariable {
+  id: string;
+  name: string;
+  value: string;
+}
+
 type ParseResult = { ok: true; value: unknown } | { ok: false; error: string };
+type TextResult = { ok: true; text: string } | { ok: false; error: string };
+
+export const VARIABLE_NAME = /^[A-Za-z_]\w*$/;
+const VARIABLE_REF = /\{\{\s*([A-Za-z_]\w*)\s*\}\}/g;
+
+function substitute(raw: string, values: Map<string, string>): TextResult {
+  let missing: string | undefined;
+  const text = raw.replace(VARIABLE_REF, (whole, name: string) => {
+    const v = values.get(name);
+    if (v === undefined) missing ??= name;
+    return v ?? whole;
+  });
+  return missing ? { ok: false, error: `Unknown variable {{${missing}}}` } : { ok: true, text };
+}
+
+// Variables resolve in order, so a later variable can build on an earlier one.
+export function resolveTestVariables(vars: TestVariable[]): { values: Map<string, string>; errors: Map<string, string> } {
+  const values = new Map<string, string>();
+  const errors = new Map<string, string>();
+  for (const v of vars) {
+    if (!v.name) continue;
+    if (!VARIABLE_NAME.test(v.name)) {
+      errors.set(v.id, "Use letters, numbers and underscores");
+      continue;
+    }
+    if (values.has(v.name)) {
+      errors.set(v.id, `{{${v.name}}} is already defined`);
+      continue;
+    }
+    const r = substitute(v.value, values);
+    if (r.ok) values.set(v.name, r.text);
+    else errors.set(v.id, r.error);
+  }
+  return { values, errors };
+}
 
 export type OutputCheck = { name: string; expected: unknown; actual: unknown; pass: boolean };
 
@@ -25,7 +67,7 @@ const JSON_TYPES = new Set(["Tally", "Timeline", "Funnel", "Array of Numbers", "
 export function placeholderFor(type: string): string {
   if (NUMBER_TYPES.has(type)) return "e.g. 42";
   if (type === "Boolean" || type === "Badge") return "true or false";
-  if (type === "Date") return "e.g. 2026-01-31";
+  if (type === "Date") return "e.g. 2026-01-31T09:00:00Z";
   if (LIST_TYPES.has(type)) return "a, b, c";
   if (type === "Tally") return '{"shoes": 3}';
   if (JSON_TYPES.has(type)) return "JSON";
@@ -46,8 +88,8 @@ export function parseExtensionValue(raw: string, type: string): ParseResult {
     return v === "true" || v === "false" ? { ok: true, value: v === "true" } : { ok: false, error: "Use true or false" };
   }
   if (type === "Date") {
-    const d = new Date(trimmed);
-    return Number.isNaN(d.getTime()) ? { ok: false, error: `"${raw}" is not a valid date` } : { ok: true, value: d };
+    const ms = /^-?\d+$/.test(trimmed) ? Number(trimmed) : new Date(trimmed).getTime();
+    return Number.isNaN(ms) ? { ok: false, error: `"${raw}" is not a valid date` } : { ok: true, value: ms };
   }
   if (LIST_TYPES.has(type) && !trimmed.startsWith("[")) {
     return { ok: true, value: trimmed.split(",").map((s) => s.trim()).filter(Boolean) };
@@ -76,8 +118,9 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function formatExtensionValue(value: unknown): string {
+export function formatExtensionValue(value: unknown, type?: string): string {
   if (value === undefined) return "not set";
+  if (type === "Date" && typeof value === "number" && Number.isFinite(value)) return new Date(value).toISOString();
   if (typeof value === "number" && Number.isNaN(value)) return "NaN";
   if (value instanceof Date) return value.toISOString();
   if (typeof value === "string") return JSON.stringify(value);
@@ -89,20 +132,26 @@ export function runExtensionTest(
   inputs: ExtensionParam[],
   outputs: ExtensionParam[],
   test: ExtensionTest,
+  variables: Map<string, string> = new Map(),
 ): ExtensionTestResult {
   const start = performance.now();
   const elapsed = () => Math.round((performance.now() - start) * 100) / 100;
 
+  const parseField = (raw: string, type: string): ParseResult => {
+    const r = substitute(raw, variables);
+    return r.ok ? parseExtensionValue(r.text, type) : r;
+  };
+
   const input: Record<string, unknown> = {};
   for (const p of inputs) {
-    const parsed = parseExtensionValue(test.inputs[p.variableName] ?? "", p.type);
+    const parsed = parseField(test.inputs[p.variableName] ?? "", p.type);
     if (!parsed.ok) return { ok: false, error: `input.${p.variableName}: ${parsed.error}`, durationMs: elapsed() };
     input[p.variableName] = parsed.value;
   }
 
   const expected: Record<string, unknown> = {};
   for (const p of outputs) {
-    const parsed = parseExtensionValue(test.expected[p.variableName] ?? "", p.type);
+    const parsed = parseField(test.expected[p.variableName] ?? "", p.type);
     if (!parsed.ok) return { ok: false, error: `expected output.${p.variableName}: ${parsed.error}`, durationMs: elapsed() };
     expected[p.variableName] = parsed.value;
   }

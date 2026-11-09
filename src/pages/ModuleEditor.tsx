@@ -13,7 +13,13 @@ import SimpleTooltip from "../components/SimpleTooltip";
 import { TYPE_ICONS, TYPE_COLORS } from "../constants/typeIcons";
 import ExtensionCodeField from "../components/ExtensionCodeField";
 import ExtensionTestTable from "../components/ExtensionTestTable";
-import { formatExtensionValue, runExtensionTest, type ExtensionTest } from "../utils/extensionRuntime";
+import {
+  formatExtensionValue,
+  resolveTestVariables,
+  runExtensionTest,
+  type ExtensionTest,
+  type TestVariable,
+} from "../utils/extensionRuntime";
 import "./Operators.css";
 import "./ModuleEditor.css";
 
@@ -443,9 +449,11 @@ export default function ModuleEditor() {
 
   const testInputs = useMemo(() => inputParams.filter((p) => p.variableName), [inputParams]);
   const testOutputs = useMemo(() => outputParams.filter((p) => p.variableName), [outputParams]);
+  const [testVariables, setTestVariables] = useState<TestVariable[]>([]);
+  const resolvedVariables = useMemo(() => resolveTestVariables(testVariables), [testVariables]);
   const testResults = useMemo(
-    () => testCases.map((t) => runExtensionTest(codeBody, testInputs, testOutputs, t)),
-    [codeBody, testCases, testInputs, testOutputs]
+    () => testCases.map((t) => runExtensionTest(codeBody, testInputs, testOutputs, t, resolvedVariables.values)),
+    [codeBody, testCases, testInputs, testOutputs, resolvedVariables]
   );
   const failedTests = useMemo(
     () =>
@@ -1180,7 +1188,16 @@ export default function ModuleEditor() {
           </div>
         </div>
         {!collapsed.tests && (
-          <ExtensionTestTable inputs={testInputs} outputs={testOutputs} tests={testCases} results={testResults} onChange={setTestCases} />
+          <ExtensionTestTable
+            inputs={testInputs}
+            outputs={testOutputs}
+            tests={testCases}
+            results={testResults}
+            onChange={setTestCases}
+            variables={testVariables}
+            variableErrors={resolvedVariables.errors}
+            onVariablesChange={setTestVariables}
+          />
         )}
       </section>
 
