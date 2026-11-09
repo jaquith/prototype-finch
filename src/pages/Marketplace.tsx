@@ -58,7 +58,7 @@ function MarketplaceCard({
 }) {
   const navigate = useNavigate();
   const { isAdded, addExtension, getAdded } = useMarketplace();
-  const added = isAdded(ext.id);
+  const added = !!ext.definitionId || isAdded(ext.id);
   const record = getAdded(ext.id);
   return (
     <div
@@ -114,7 +114,7 @@ function MarketplaceCard({
             <button
               type="button"
               className="mkt-open-link"
-              onClick={() => navigate(`/modules/${ext.id}`)}
+              onClick={() => navigate(`/modules/${ext.definitionId ?? ext.id}`)}
             >
               Open
             </button>
@@ -153,7 +153,7 @@ export default function Marketplace() {
     });
   }, [category, tier, query]);
 
-  const addedCount = MARKETPLACE_CATALOG.filter((e) => isAdded(e.id)).length;
+  const addedCount = MARKETPLACE_CATALOG.filter((e) => e.definitionId || isAdded(e.id)).length;
   const tierFilters: { value: MarketplaceTier | "all"; label: string }[] = [
     { value: "all", label: "All sources" },
     { value: "core", label: TIER_LABELS.core.title },
@@ -244,8 +244,9 @@ export default function Marketplace() {
 function DetailDrawer({ ext, onClose }: { ext: MarketplaceExtension; onClose: () => void }) {
   const navigate = useNavigate();
   const { isAdded, addExtension, getAdded } = useMarketplace();
-  const added = isAdded(ext.id);
+  const added = !!ext.definitionId || isAdded(ext.id);
   const record = getAdded(ext.id);
+  const openTarget = ext.definitionId ?? ext.id;
   const inputs = ext.params.filter((p) => p.direction === "input");
   const outputs = ext.params.filter((p) => p.direction === "output");
 
@@ -306,7 +307,14 @@ function DetailDrawer({ ext, onClose }: { ext: MarketplaceExtension; onClose: ()
         </div>
 
         <div className="mkt-drawer-section">
-          <h3 className="mkt-drawer-section-title">Source Preview</h3>
+          <h3 className="mkt-drawer-section-title">
+            Source Preview
+            {ext.testCount > 0 && (
+              <span className="mkt-drawer-version">
+                {" "}· {ext.testCount} {ext.testCount === 1 ? "test" : "tests"} included
+              </span>
+            )}
+          </h3>
           <pre className="mkt-code-preview">{ext.code.trim()}</pre>
         </div>
 
@@ -317,7 +325,7 @@ function DetailDrawer({ ext, onClose }: { ext: MarketplaceExtension; onClose: ()
                 <i className="fas fa-check" aria-hidden="true" /> Added to Definitions
                 {record?.modified && <span className="mkt-modified-inline"> · Modified</span>}
               </span>
-              <Button type="primary" onClick={() => navigate(`/modules/${ext.id}`)}>
+              <Button type="primary" onClick={() => navigate(`/modules/${openTarget}`)}>
                 <i className="fas fa-arrow-right" aria-hidden="true" />
                 <span>Open in editor</span>
               </Button>

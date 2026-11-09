@@ -34,24 +34,24 @@ interface MarketplaceContextValue {
   updateExtension: (id: string) => void;
 }
 
-const STORAGE_KEY = "finch.marketplace.added.v3";
+const STORAGE_KEY = "finch.marketplace.added.v4";
 
-// Two illustrative pre-installed capsules so the flow is visible on a fresh
-// load: one stock (added, untouched) and one that has been unlocked and
-// modified from its published version, with who/when attribution.
+// Two illustrative installs so the flow is visible on a fresh load: one stock
+// (added, untouched, with an update waiting) and one that has been unlocked
+// and modified from its published version, with who/when attribution.
 const SEED_ADDED: AddedExtension[] = [
   {
-    id: "mkt-set-builder",
+    id: "mkt-15",
     addedAt: "2026-07-28T15:12:00.000Z",
     addedBy: "Priya Nair",
     enabled: true,
     unlocked: false,
     modified: false,
-    // Pinned behind the catalog's current v3.2.0 so an update is available.
-    installedVersion: "3.0.0",
+    // Pinned behind the catalog's current v1.3.0 so an update is available.
+    installedVersion: "1.2.0",
   },
   {
-    id: "mkt-normalize-string",
+    id: "mkt-18",
     addedAt: "2026-07-30T09:40:00.000Z",
     addedBy: "Marcus Feld",
     enabled: true,
@@ -60,11 +60,11 @@ const SEED_ADDED: AddedExtension[] = [
     modifiedAt: "2026-08-11T13:22:00.000Z",
     modifiedBy: "Marcus Feld",
     overrides: {
-      name: "Normalize String (EU locale)",
+      name: "Cart Abandoner (EU stores)",
       description:
-        "Trim, lowercase, and strip characters in one step. Customized to also fold accented EU characters to their ASCII equivalents before hashing.",
+        "Flags visitors who left items in their cart. Customized to use a 48-hour abandonment window for EU storefronts.",
     },
-    installedVersion: "2.1.3",
+    installedVersion: "2.2.0",
   },
 ];
 

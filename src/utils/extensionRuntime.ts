@@ -92,7 +92,7 @@ export function parseExtensionValue(raw: string, type: string): ParseResult {
     return Number.isNaN(ms) ? { ok: false, error: `"${raw}" is not a valid date` } : { ok: true, value: ms };
   }
   if (LIST_TYPES.has(type) && !trimmed.startsWith("[")) {
-    return { ok: true, value: trimmed.split(",").map((s) => s.trim()).filter(Boolean) };
+    return { ok: true, value: trimmed.split(",").map((s) => s.trim()).filter(Boolean).map(unquote) };
   }
   if (LIST_TYPES.has(type) || JSON_TYPES.has(type)) {
     try {
@@ -101,7 +101,22 @@ export function parseExtensionValue(raw: string, type: string): ParseResult {
       return { ok: false, error: "Invalid JSON" };
     }
   }
-  return { ok: true, value: raw };
+  return { ok: true, value: unquote(raw) };
+}
+
+// A string wrapped in double quotes is read as a JSON literal, so `""` is an
+// empty string and `" hi "` keeps its spaces; anything else is taken as typed.
+function unquote(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === "string") return parsed;
+    } catch {
+      /* not a valid literal; use the text as typed */
+    }
+  }
+  return raw;
 }
 
 function canonical(value: unknown): string {

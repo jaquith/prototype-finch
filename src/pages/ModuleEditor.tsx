@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMvpMode } from "../contexts/MvpContext";
 import { useMarketplace } from "../contexts/MarketplaceContext";
 import { getCatalogItem, isMarketplaceId } from "../data/marketplaceCatalog";
+import { findExtension } from "../data/extensions";
 import Button from "../components/SimpleButton";
 import Textbox from "../components/SimpleTextbox";
 import TextArea from "../components/SimpleTextArea";
@@ -442,7 +443,7 @@ export default function ModuleEditor() {
   } | null>(null);
 
   const [testCases, setTestCases] = useState<ExtensionTest[]>(() =>
-    isNew || catalogItem ? [] : isNormalize ? TESTS_NORMALIZE : isTally ? buildTallyTests() : isNormalizeStrings ? TESTS_NORMALIZE_STRINGS : isRecency ? buildRecencyTests() : TESTS_ENGAGEMENT
+    catalogItem ? findExtension(catalogItem.registryId)?.tests.map((t) => ({ ...t })) ?? [] : isNew ? [] : isNormalize ? TESTS_NORMALIZE : isTally ? buildTallyTests() : isNormalizeStrings ? TESTS_NORMALIZE_STRINGS : isRecency ? buildRecencyTests() : TESTS_ENGAGEMENT
   );
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ code: true });
   const toggle = (key: string) => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
