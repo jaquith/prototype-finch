@@ -1172,9 +1172,11 @@
 
 .ext-test-text {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .ext-test-name {
@@ -1185,13 +1187,51 @@
 }
 
 .ext-test-summary {
-  font-family: "Courier New", Courier, monospace;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+  max-height: 52px;
+  overflow: hidden;
+}
+
+.ext-test-arrow {
+  font-size: 10px;
+  color: var(--gray-600, #8a94a3);
+}
+
+.ext-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  max-width: 220px;
+  padding: 1px 6px;
+  border: 1px solid var(--gray-300, #d9d9d9);
+  border-radius: 4px;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--gray-700, #5f6b7a);
+  color: var(--gray-800, #4a5568);
+}
+
+.ext-chip-key {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.ext-chip-value {
+  min-width: 0;
   overflow: hidden;
+  font-family: "Courier New", Courier, monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ext-chip-empty {
+  border-style: dashed;
+  font-style: italic;
+  color: var(--gray-600, #8a94a3);
 }
 
 .ext-test-body {

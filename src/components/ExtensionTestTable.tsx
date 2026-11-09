@@ -22,12 +22,23 @@ interface ExtensionTestTableProps {
 
 const isPassing = (r: ExtensionTestResult | undefined) => !!r && r.ok && r.pass;
 
-function summarize(values: Record<string, string>, params: ExtensionParam[], prefix: string): string {
-  const parts = params
-    .filter((p) => (values[p.variableName] ?? "").trim() !== "")
-    .map((p) => `${prefix}.${p.variableName} = ${values[p.variableName].replace(/\s+/g, " ")}`);
-  return parts.length ? parts.join(", ") : "nothing set";
-}
+function SummaryChips({ values, params }: { values: Record<string, string>; params: ExtensionParam[] }) {
+  const set = params.filter((p) => (values[p.variableName] ?? "").trim() !== "");
+  if (set.length === 0) return <span className="ext-chip ext-chip-empty">nothing set</span>;
+  return (
+    <>
+      {set.map((p) => {
+        const value = values[p.variableName].replace(/\s+/g, " ").trim();
+        return (
+          <span key={p.variableName} className="ext-chip" title={`${p.variableName} = ${value}`}>
+            <span className="ext-chip-key">{p.variableName}</span>
+            <span className="ext-chip-value">{value}</span>
+          </span>
+        );
+      })}
+    </>
+  );
+  }
 
 function TestVariables({
   variables,
@@ -178,10 +189,10 @@ export default function ExtensionTestTable({
                         <span className="ext-test-name">{t.name || "Untitled test"}</span>
                         {!open && (
                           <span className="ext-test-summary">
-                            {summarize(t.inputs, namedInputs, "input")}
-                            <span className="ext-test-arrow" aria-hidden="true"> → </span>
-                            <span className="sr-only">, expecting </span>
-                            {summarize(t.expected, namedOutputs, "output")}
+                            <SummaryChips values={t.inputs} params={namedInputs} />
+                            <i className="fas fa-arrow-right ext-test-arrow" aria-hidden="true" />
+                            <span className="sr-only">expecting</span>
+                            <SummaryChips values={t.expected} params={namedOutputs} />
                           </span>
                         )}
                       </span>
