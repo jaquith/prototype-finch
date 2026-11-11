@@ -483,6 +483,11 @@
   font-size: 8px;
   }
 
+.module-source-modified {
+  font-size: 8px;
+  opacity: 0.75;
+}
+
 .module-source-badge {
   display: inline-flex;
   align-items: center;

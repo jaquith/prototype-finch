@@ -464,35 +464,34 @@ export default function ModuleList() {
                   </td>
                   <td className="module-table-td module-col-name">
                     <span className="module-name-text">{mod.name}</span>
-                    {showMarketplace && mod.source && (
-                      <span className={`module-source-badge module-source-${mod.source}`}>
-                        <i className={SOURCE_ICONS[mod.source] || "fas fa-cube"} aria-hidden="true" />
-                        {sourceLabel({ source: mod.source, publisher: mod.publisher || "" })}
-                      </span>
-                    )}
+                    {showMarketplace && mod.source && mod.source !== "team" && (() => {
+                      const isModified = !!(mod.isMarketplace && mod.modified);
+                      const tip = [
+                        sourceLabel({ source: mod.source, publisher: mod.publisher || "" }),
+                        isModified
+                          ? `Modified from the published version${mod.modifiedBy ? ` by ${mod.modifiedBy}` : ""}${mod.modifiedAtISO ? ` on ${formatWhen(mod.modifiedAtISO)}` : ""}`
+                          : null,
+                      ].filter(Boolean).join("\n");
+                      return (
+                        <SimpleTooltip title={tip}>
+                          <span className={`module-source-badge module-source-${mod.source}`}>
+                            <i className={SOURCE_ICONS[mod.source] || "fas fa-cube"} aria-hidden="true" />
+                            {mod.source === "tealium" ? "Tealium" : mod.publisher || "Community"}
+                            {isModified && (
+                              <>
+                                <i className="fas fa-pen module-source-modified" aria-hidden="true" />
+                                <span className="sr-only">, modified</span>
+                              </>
+                            )}
+                          </span>
+                        </SimpleTooltip>
+                      );
+                    })()}
                     {mod.isBulk && (
                       <span className="module-bulk-badge">
                         <i className="fas fa-cubes" aria-hidden="true" />
                         Bulk
                       </span>
-                    )}
-                    {mod.isMarketplace && (
-                      <SimpleTooltip title={`From Marketplace${mod.publisher ? ` · by ${mod.publisher}` : ""}`}>
-                        <span className="module-mkt-badge">
-                          <i className="fas fa-shopping-bag" aria-hidden="true" />
-                          Marketplace
-                        </span>
-                      </SimpleTooltip>
-                    )}
-                    {mod.isMarketplace && mod.modified && (
-                      <SimpleTooltip
-                        title={`Modified from the published version${mod.modifiedBy ? ` by ${mod.modifiedBy}` : ""}${mod.modifiedAtISO ? ` on ${formatWhen(mod.modifiedAtISO)}` : ""}`}
-                      >
-                        <span className="module-modified-badge">
-                          <i className="fas fa-pen" aria-hidden="true" />
-                          Modified
-                        </span>
-                      </SimpleTooltip>
                     )}
                   </td>
                   <td className="module-table-td module-col-scopes">
