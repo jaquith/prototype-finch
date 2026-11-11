@@ -8,10 +8,19 @@ import ModuleEditor from "./pages/ModuleEditor";
 import ModuleInstances from "./pages/ModuleInstances";
 import Attributes from "./pages/Attributes";
 import InstanceOverview from "./pages/InstanceOverview";
+import OperatorList from "./pages/OperatorList";
+import OperatorEditor from "./pages/OperatorEditor";
+import Marketplace from "./pages/Marketplace";
+import { MarketplaceProvider } from "./contexts/MarketplaceContext";
 
 function IndexRoute() {
   const { isMvp } = useMvpMode();
   return isMvp ? <Navigate to="/extensions" replace /> : <ExtensionsOverview />;
+}
+
+function MarketplaceRoute() {
+  const { showMarketplace } = useMvpMode();
+  return showMarketplace ? <Marketplace /> : <Navigate to="/extensions" replace />;
 }
 
 const router = createBrowserRouter([
@@ -26,6 +35,10 @@ const router = createBrowserRouter([
       {
         path: "extensions",
         element: <ModuleList />,
+      },
+      {
+        path: "marketplace",
+        element: <MarketplaceRoute />,
       },
       {
         path: "attributes",
@@ -43,6 +56,14 @@ const router = createBrowserRouter([
         path: "instances",
         element: <InstanceOverview />,
       },
+      {
+        path: "operators",
+        element: <OperatorList />,
+      },
+      {
+        path: "operators/:id",
+        element: <OperatorEditor />,
+      },
     ],
   },
 ]);
@@ -51,7 +72,9 @@ function App() {
   return (
     <UIKitProvider>
       <MvpProvider>
-        <RouterProvider router={router} />
+        <MarketplaceProvider>
+          <RouterProvider router={router} />
+        </MarketplaceProvider>
       </MvpProvider>
     </UIKitProvider>
   );

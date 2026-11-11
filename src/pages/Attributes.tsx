@@ -2,6 +2,10 @@ import React, { useState, useMemo, useCallback } from "react";
 import Button from "../components/SimpleButton";
 import Badge from "../components/SimpleBadge";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { derivedAttributes, installedDerived, type InstalledDerived } from "../data/extensionActivity";
+import { useSearchParams } from "react-router-dom";
+import EnrichmentConditions, { type EnrichmentCondition } from "../components/EnrichmentConditions";
 import "./Attributes.css";
 
 type AttrScope = "Visit" | "Visitor" | "Event";
@@ -13,6 +17,7 @@ interface Enrichment {
   description: string;
   when: string;
   rule?: string;
+  conditions?: EnrichmentCondition[];
 }
 
 interface ExtensionRef {
@@ -411,7 +416,10 @@ const MOCK_ATTRIBUTES: Attribute[] = [
     scope: "Visitor",
     notes: "Customer loyalty tier derived from lifetime revenue",
     enrichments: [
-      { source: "Set Loyalty Tier", sourceType: "rule", description: "For String loyalty_tier, set value to \"gold\" when lifetime_revenue is greater than 5000", when: "Any Event", rule: "High Value Customer" },
+      { source: "Set Loyalty Tier", sourceType: "rule", description: "For String loyalty_tier, set value to \"gold\" when lifetime_revenue is greater than 5000", when: "Any Event", rule: "High Value Customer", conditions: [
+        { attribute: "lifetime_revenue", operator: "greater than", values: ["5000"] },
+        { attribute: "last_interaction_date", operator: "custom:op3", values: ["90"] },
+      ] },
       { source: "Set Loyalty Tier Default", sourceType: "rule", description: "For String loyalty_tier, set value to \"silver\" when lifetime_revenue is greater than 1000", when: "Any Event", rule: "Mid Value Customer" },
     ],
     extensions: [
@@ -545,11 +553,106 @@ const MOCK_ATTRIBUTES: Attribute[] = [
     scope: "Visitor",
     notes: "Unique search terms from across all visits",
     enrichments: [
-      { source: "Add Search Term", sourceType: "rule", description: "For Set of Strings search_history, add search_query when search_query is assigned", when: "Any Event", rule: "Search Performed" },
+      { source: "Add Search Term", sourceType: "rule", description: "For Set of Strings search_history, add search_query when search_query is assigned", when: "Any Event", rule: "Search Performed", conditions: [
+        { attribute: "search_query", operator: "is set", values: [] },
+        { attribute: "search_query", operator: "custom:op2", values: ["^[\\w\\s-]{3,64}$"] },
+        { attribute: "search_history", operator: "custom:op4", values: ["shoes, boots, sandals"], negate: true },
+      ] },
     ],
     extensions: [],
     linkedEnrichments: [],
     lastModified: "Feb 20, 2026 at 9:45 AM",
+    lastModifiedBy: "caleb.jaquith@tealium.com",
+    audienceDB: true,
+  },
+  {
+    id: "a22",
+    attrId: 5218,
+    name: "order_date",
+    type: "Date",
+    scope: "Event",
+    notes: "Timestamp of the order, taken from the purchase event payload",
+    enrichments: [],
+    extensions: [],
+    linkedEnrichments: [
+      { action: "Set Last Purchase Date", target: "last_purchase_date", targetId: "a24", description: "Copies the order date to the visitor's last purchase date", when: "Any Event" },
+      { action: "Set Holiday Purchase Date", target: "holiday_purchase_date", targetId: "a25", description: "Records orders placed around Black Friday", when: "Any Event" },
+    ],
+    lastModified: "Mar 14, 2026 at 10:05 AM",
+    lastModifiedBy: "caleb.jaquith@tealium.com",
+    audienceDB: false,
+  },
+  {
+    id: "a23",
+    attrId: 5219,
+    name: "first_visit_date",
+    type: "Date",
+    scope: "Visitor",
+    notes: "Date of the visitor's first recorded visit. Never overwritten.",
+    enrichments: [
+      { source: "Set First Visit Date", sourceType: "rule", description: "For Date first_visit_date, set to the current timestamp when first_visit_date is not set", when: "New Visitor", rule: "First Visit" },
+    ],
+    extensions: [],
+    linkedEnrichments: [],
+    lastModified: "Mar 14, 2026 at 10:12 AM",
+    lastModifiedBy: "caleb.jaquith@tealium.com",
+    audienceDB: true,
+  },
+  {
+    id: "a24",
+    attrId: 5220,
+    name: "last_purchase_date",
+    type: "Date",
+    scope: "Visitor",
+    notes: "Most recent order date across all visits",
+    enrichments: [
+      { source: "Set Last Purchase Date", sourceType: "rule", description: "For Date last_purchase_date, set to order_date when order_date is assigned", when: "Any Event", rule: "Purchase Completed", conditions: [
+        { attribute: "order_date", operator: "is set", values: [] },
+      ] },
+    ],
+    extensions: [],
+    linkedEnrichments: [
+      { action: "Set Win-Back Date", target: "winback_eligible_date", targetId: "a26", description: "Marks lapsed customers for win-back campaigns", when: "Any Event" },
+    ],
+    lastModified: "Mar 14, 2026 at 10:20 AM",
+    lastModifiedBy: "caleb.jaquith@tealium.com",
+    audienceDB: true,
+  },
+  {
+    id: "a25",
+    attrId: 5221,
+    name: "holiday_purchase_date",
+    type: "Date",
+    scope: "Visitor",
+    notes: "Order date of a purchase made within a week of Black Friday",
+    enrichments: [
+      { source: "Set Holiday Purchase Date", sourceType: "rule", description: "For Date holiday_purchase_date, set to order_date when order_date is within 7 days of Black Friday", when: "Any Event", rule: "Purchase Completed", conditions: [
+        { attribute: "order_date", operator: "is set", values: [] },
+        { attribute: "order_date", operator: "custom:op5", values: ["7", "2026-11-27"] },
+      ] },
+    ],
+    extensions: [],
+    linkedEnrichments: [],
+    lastModified: "Mar 14, 2026 at 10:31 AM",
+    lastModifiedBy: "caleb.jaquith@tealium.com",
+    audienceDB: true,
+  },
+  {
+    id: "a26",
+    attrId: 5222,
+    name: "winback_eligible_date",
+    type: "Date",
+    scope: "Visitor",
+    notes: "Set when a returning customer hasn't purchased in 90 days",
+    enrichments: [
+      { source: "Set Win-Back Date", sourceType: "rule", description: "For Date winback_eligible_date, set to the current timestamp when last_purchase_date is not within the last 90 days", when: "New Visit", rule: "Returning Visitor", conditions: [
+        { attribute: "last_purchase_date", operator: "is set", values: [] },
+        { attribute: "last_purchase_date", operator: "custom:op3", values: ["90"], negate: true },
+      ] },
+    ],
+    extensions: [],
+    linkedEnrichments: [],
+    lastModified: "Mar 14, 2026 at 10:40 AM",
     lastModifiedBy: "caleb.jaquith@tealium.com",
     audienceDB: true,
   },
@@ -594,9 +697,51 @@ function getBulkInstancesForAttr(attr: Attribute, exclusions: Record<string, str
   return { active, excluded };
 }
 
+function toAttrType(type: string): AttrType {
+  return type in TYPE_COLORS ? (type as AttrType) : "String";
+}
+
+function mergeDerivedAttributes(base: Attribute[], installed: InstalledDerived[]): Attribute[] {
+  const byName = new Map(base.map((a) => [a.name.toLowerCase(), { ...a, extensions: [...(a.extensions || [])] }]));
+  let nextAttrId = Math.max(0, ...base.map((a) => a.attrId)) + 1;
+  for (const item of installed) {
+    for (const derived of derivedAttributes(item.ext, item.name)) {
+      const key = derived.name.toLowerCase();
+      const existing = byName.get(key);
+      if (existing) {
+        existing.extensions!.push(...derived.refs);
+        continue;
+      }
+      byName.set(key, {
+        id: `derived-${item.id}-${derived.name}`,
+        attrId: nextAttrId++,
+        name: derived.name,
+        type: toAttrType(derived.type),
+        scope: derived.scope,
+        notes: `Example attribute used by ${item.name}.`,
+        enrichments: [],
+        extensions: derived.refs,
+        lastModified: "2026-11-09",
+        lastModifiedBy: "Marketplace install",
+        audienceDB: false,
+      });
+    }
+  }
+  return [...byName.values()];
+}
+
 export default function Attributes() {
-  const { isMvp } = useMvpMode();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { isMvp, showMarketplace } = useMvpMode();
+  const { added } = useMarketplace();
+  const attributes = useMemo(
+    () => (showMarketplace ? mergeDerivedAttributes(MOCK_ATTRIBUTES, installedDerived(added, false)) : MOCK_ATTRIBUTES),
+    [added, showMarketplace]
+  );
+  const [searchParams] = useSearchParams();
+  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("attr"));
+  const [conditionOverrides, setConditionOverrides] = useState<Record<string, EnrichmentCondition[]>>({});
+  const [editingEnrichment, setEditingEnrichment] = useState<string | null>(null);
+  const attributeOptions = useMemo(() => attributes.map((a) => ({ name: a.name, type: a.type })), [attributes]);
   const [bulkExclusions, setBulkExclusions] = useState<Record<string, string[]>>(DEFAULT_EXCLUSIONS);
 
   const handleExcludeFromBulk = (instanceId: string, attrName: string) => {
@@ -618,22 +763,22 @@ export default function Attributes() {
   const [orderBy, setOrderBy] = useState<"name" | "date">("name");
 
   const scopeCounts = useMemo(() => {
-    const visitor = MOCK_ATTRIBUTES.filter((a) => a.scope === "Visitor").length;
-    const visit = MOCK_ATTRIBUTES.filter((a) => a.scope === "Visit").length;
-    const event = MOCK_ATTRIBUTES.filter((a) => a.scope === "Event").length;
-    return { all: MOCK_ATTRIBUTES.length, visitor, visit, event };
-  }, []);
+    const visitor = attributes.filter((a) => a.scope === "Visitor").length;
+    const visit = attributes.filter((a) => a.scope === "Visit").length;
+    const event = attributes.filter((a) => a.scope === "Event").length;
+    return { all: attributes.length, visitor, visit, event };
+  }, [attributes]);
 
   const typeCounts = useMemo(() => {
     const counts: Partial<Record<AttrType, number>> = {};
-    MOCK_ATTRIBUTES.forEach((a) => {
+    attributes.forEach((a) => {
       counts[a.type] = (counts[a.type] || 0) + 1;
     });
     return counts;
-  }, []);
+  }, [attributes]);
 
   const filtered = useMemo(() => {
-    let attrs = MOCK_ATTRIBUTES.filter((attr) => {
+    let attrs = attributes.filter((attr) => {
       if (scopeFilter !== "all" && attr.scope !== scopeFilter) return false;
       if (typeFilter !== "all" && attr.type !== typeFilter) return false;
       if (searchQuery && !attr.name.toLowerCase().includes(searchQuery.toLowerCase()) && !attr.notes.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -645,9 +790,9 @@ export default function Attributes() {
       attrs = [...attrs].sort((a, b) => b.lastModified.localeCompare(a.lastModified));
     }
     return attrs;
-  }, [scopeFilter, typeFilter, searchQuery, orderBy]);
+  }, [attributes, scopeFilter, typeFilter, searchQuery, orderBy]);
 
-  const selectedAttr = selectedId ? MOCK_ATTRIBUTES.find((a) => a.id === selectedId) : null;
+  const selectedAttr = selectedId ? attributes.find((a) => a.id === selectedId) : null;
 
   return (
     <div className="attr-page">
@@ -777,21 +922,40 @@ export default function Attributes() {
                   <span className="attr-detail-section-help"> - These are used to enrich this attribute</span>
                   <button className="attr-detail-add-btn">Add Enrichment</button>
                 </div>
-                {selectedAttr.enrichments.map((e, idx) => (
-                  <div key={idx} className="attr-detail-enrichment-card">
-                    <div className="attr-detail-enrichment-desc">{e.description}</div>
-                    <div className="attr-detail-enrichment-when">
-                      <span className="attr-detail-when-label">WHEN</span>
-                      <span className="attr-detail-when-pipe">|</span>
-                      <span>{e.when}</span>
-                    </div>
-                    {e.rule && (
-                      <div className="attr-detail-enrichment-rule">
-                        <span className="attr-detail-rule-label">Rule:</span> {e.rule}
+                {selectedAttr.enrichments.map((e, idx) => {
+                  const key = `${selectedAttr.id}-${idx}`;
+                  const conditions = conditionOverrides[key] ?? e.conditions ?? [];
+                  const editing = editingEnrichment === key;
+                  return (
+                    <div key={idx} className="attr-detail-enrichment-card">
+                      <div className="attr-detail-enrichment-desc">{e.description}</div>
+                      <div className="attr-detail-enrichment-when">
+                        <span className="attr-detail-when-label">WHEN</span>
+                        <span className="attr-detail-when-pipe">|</span>
+                        <span>{e.when}</span>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {e.rule && (
+                        <div className="attr-detail-enrichment-rule">
+                          <span className="attr-detail-rule-label">Rule:</span> {e.rule}
+                        </div>
+                      )}
+                      <EnrichmentConditions
+                        conditions={conditions}
+                        attributes={attributeOptions}
+                        editing={editing}
+                        onChange={(next) => setConditionOverrides((prev) => ({ ...prev, [key]: next }))}
+                      />
+                      <button
+                        type="button"
+                        className="op-add-btn"
+                        onClick={() => setEditingEnrichment(editing ? null : key)}
+                      >
+                        <i className={`fas ${editing ? "fa-check" : "fa-filter"}`} aria-hidden="true" />{" "}
+                        {editing ? "Done" : conditions.length ? "Edit conditions" : "Add conditions"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

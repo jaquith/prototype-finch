@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { getCatalogItem, isMarketplaceId } from "../data/marketplaceCatalog";
+import { formatWhen } from "../utils/formatDate";
+import { EXTENSIONS, findExtension } from "../data/extensions";
+import { sourceLabel } from "../data/extensionTypes";
+import type { ExtensionDefinition } from "../data/extensionTypes";
+import { runExtensionTest } from "../utils/extensionRuntime";
 import Button from "../components/SimpleButton";
 import Badge from "../components/SimpleBadge";
 import SimpleSwitch from "../components/SimpleSwitch";
@@ -20,6 +27,12 @@ interface Module {
   activeTimingCounts?: Partial<Record<"Pre-Event" | "Post-Event" | "Pre-Visitor" | "Post-Visitor" | "Post-Audience", number>>;
   isBulk?: boolean;
   supportedTypes?: string[];
+  source?: string;
+  publisher?: string;
+  isMarketplace?: boolean;
+  modified?: boolean;
+  modifiedBy?: string;
+  modifiedAtISO?: string;
 }
 
 const ALL_POSITIONS = [
@@ -30,80 +43,81 @@ const ALL_POSITIONS = [
   { id: "Post-Audience", short: "PostA" },
 ];
 
-const MOCK_MODULES: Module[] = [
-  {
-    id: "1",
-    name: "Normalize Page URLs",
-    isBulk: true,
-    supportedTypes: ["String"],
-    scope: "Event",
-    timing: "Pre-Event",
-    timings: ["Pre-Event", "Post-Event", "Pre-Visitor", "Post-Visitor", "Post-Audience"],
-    enabled: true,
-    lastModified: "2025-02-28",
-    tests: { total: 3, passed: 3, failed: 0 },
-    instances: 2,
-    activeTimingCounts: { "Pre-Event": 2 },
-  },
-  {
-    id: "2",
-    name: "Compute Engagement Score",
-    scope: "Multi-Scope",
-    timing: "Post-Visitor",
-    timings: ["Pre-Visitor", "Post-Visitor", "Post-Audience"],
-    enabled: true,
-    lastModified: "2025-03-01",
-    tests: { total: 4, passed: 2, failed: 2 },
-    instances: 3,
-    activeTimingCounts: { "Post-Visitor": 2, "Post-Audience": 1 },
-  },
-  {
-    id: "10",
-    name: "Tally Over Time",
-    scope: "Visit/Visitor",
-    timing: "Post-Visitor",
-    timings: ["Pre-Visitor", "Post-Visitor", "Post-Audience"],
-    enabled: true,
-    lastModified: "2025-03-05",
-    tests: { total: 6, passed: 6, failed: 0 },
-    instances: 2,
-    activeTimingCounts: { "Post-Visitor": 2 },
-  },
-  {
-    id: "11",
-    name: "Lowercase String",
-    isBulk: true,
-    supportedTypes: ["String"],
-    scope: "Multi-Scope",
-    timing: "Post-Visitor",
-    timings: ["Pre-Event", "Post-Event", "Pre-Visitor", "Post-Visitor", "Post-Audience"],
-    enabled: true,
-    lastModified: "2025-03-06",
-    tests: { total: 4, passed: 4, failed: 0 },
-    instances: 2,
-    activeTimingCounts: { "Pre-Event": 1, "Post-Event": 1 },
-  },
-  {
-    id: "8",
-    name: "Recency Frequency Scorer",
-    scope: "Visit/Visitor",
-    timing: "Post-Visitor",
-    timings: ["Pre-Visitor", "Post-Visitor", "Post-Audience"],
-    enabled: true,
-    lastModified: "2025-02-26",
-    tests: { total: 3, passed: 3, failed: 0 },
-    instances: 4,
-    activeTimingCounts: { "Post-Visitor": 4 },
-  },
-];
+type Timing = Module["timing"];
 
-// Simulated test results per module
-const MOCK_RESULTS: Record<string, { passed: number; failed: number }> = {
-  "1": { passed: 3, failed: 0 },
-  "2": { passed: 2, failed: 2 },
-  "8": { passed: 3, failed: 0 },
-  "10": { passed: 6, failed: 0 },
-  "11": { passed: 4, failed: 0 },
+const POSITION_TIMING: Record<string, Timing> = {
+  preEvent: "Pre-Event",
+  postEvent: "Post-Event",
+  preVisitor: "Pre-Visitor",
+  postVisitor: "Post-Visitor",
+  postAudience: "Post-Audience",
+};
+
+// Workspace-specific state for the registry extensions already defined here.
+const WORKSPACE_DEFINITIONS: Record<string, { lastModified: string; instances: number; activeTimingCounts: Module["activeTimingCounts"] }> = {
+  "1": { lastModified: "2025-02-28", instances: 2, activeTimingCounts: { "Pre-Event": 2 } },
+  "2": { lastModified: "2025-03-01", instances: 3, activeTimingCounts: { "Post-Visitor": 2, "Post-Audience": 1 } },
+  "8": { lastModified: "2025-02-26", instances: 4, activeTimingCounts: { "Post-Visitor": 4 } },
+  "10": { lastModified: "2025-03-05", instances: 2, activeTimingCounts: { "Post-Visitor": 2 } },
+  "11": { lastModified: "2025-03-06", instances: 2, activeTimingCounts: { "Pre-Event": 1, "Post-Event": 1 } },
+};
+
+function scopeFor(timings: Timing[]): Module["scope"] {
+  const isEvent = (t: Timing) => t === "Pre-Event" || t === "Post-Event";
+  if (timings.every(isEvent)) return "Event";
+  if (!timings.some(isEvent)) return "Visit/Visitor";
+  return "Multi-Scope";
+}
+
+function runRegistryTests(ext: ExtensionDefinition): { passed: number; failed: number } {
+  const inputs = ext.params.filter((p) => p.direction === "input");
+  const outputs = ext.params.filter((p) => p.direction === "output");
+  let passed = 0;
+  for (const t of ext.tests) {
+    const result = runExtensionTest(ext.code, inputs, outputs, t);
+    if (result.ok && result.pass) passed += 1;
+  }
+  return { passed, failed: ext.tests.length - passed };
+}
+
+const REGISTRY_RESULTS: Record<string, { passed: number; failed: number }> = Object.fromEntries(
+  EXTENSIONS.filter((e) => WORKSPACE_DEFINITIONS[e.id]).map((e) => [e.id, runRegistryTests(e)])
+);
+
+const MOCK_MODULES: Module[] = EXTENSIONS.filter((e) => WORKSPACE_DEFINITIONS[e.id]).map((ext) => {
+  const timings = ext.allowedPositions.map((p) => POSITION_TIMING[p.id]).filter(Boolean);
+  const meta = WORKSPACE_DEFINITIONS[ext.id];
+  return {
+    id: ext.id,
+    name: ext.name,
+    isBulk: ext.isBulk,
+    supportedTypes: ext.isBulk ? ["String"] : undefined,
+    scope: scopeFor(timings),
+    timing: timings[0],
+    timings,
+    enabled: true,
+    lastModified: meta.lastModified,
+    tests: { total: ext.tests.length, passed: 0, failed: 0 },
+    instances: meta.instances,
+    activeTimingCounts: meta.activeTimingCounts,
+    source: ext.source,
+    publisher: ext.publisher,
+  };
+});
+
+const SOURCE_FILTERS = [
+  { id: "all", label: "All sources" },
+  { id: "tealium", label: "By Tealium" },
+  { id: "community", label: "Community" },
+  { id: "team", label: "Your team" },
+] as const;
+
+type SourceFilter = (typeof SOURCE_FILTERS)[number]["id"];
+
+const SOURCE_ICONS: Record<string, string> = {
+  tealium: "fas fa-check-circle",
+  community: "fas fa-users",
+  team: "fas fa-user-friends",
 };
 
 // 24-hour error counts per extension (matches ERRORS in ExtensionsOverview)
@@ -117,17 +131,60 @@ const RECENT_ERRORS: Record<string, { count: number; message: string; recentInpu
 
 export default function ModuleList() {
   const navigate = useNavigate();
-  const { isMvp } = useMvpMode();
+  const { isMvp, showMarketplace } = useMvpMode();
+  const { added, setEnabled } = useMarketplace();
   const [modules, setModules] = useState(MOCK_MODULES);
+
+  const marketplaceModules = useMemo<Module[]>(
+    () =>
+      added.flatMap((rec) => {
+        const cat = getCatalogItem(rec.id);
+        if (!cat) return [];
+        const ext = findExtension(cat.registryId);
+        return [
+          {
+            id: cat.id,
+            name: rec.overrides?.name || cat.name,
+            isBulk: cat.isBulk,
+            supportedTypes: cat.supportedTypes,
+            scope: cat.scope,
+            timing: cat.timings[0],
+            timings: cat.timings,
+            enabled: rec.enabled,
+            lastModified: (rec.modifiedAt || rec.addedAt || "").slice(0, 10),
+            tests: { total: 0, passed: 0, failed: 0 },
+            instances: 0,
+            activeTimingCounts: {},
+            isMarketplace: true,
+            source: ext?.source,
+            publisher: ext?.publisher || cat.publisher,
+            modified: rec.modified,
+            modifiedBy: rec.modifiedBy,
+            modifiedAtISO: rec.modifiedAt,
+          } as Module,
+        ];
+      }),
+    [added]
+  );
   const [runningTests, setRunningTests] = useState<Set<string>>(new Set());
   const [runningAll, setRunningAll] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
 
-  // Sort modules alphabetically by name
+  const allModules = useMemo(() => {
+    const list = showMarketplace ? [...modules, ...marketplaceModules] : modules;
+    return isMvp ? list.filter((m) => !m.isBulk) : list;
+  }, [modules, marketplaceModules, isMvp, showMarketplace]);
+
+  const sourceCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: allModules.length };
+    for (const m of allModules) if (m.source) counts[m.source] = (counts[m.source] || 0) + 1;
+    return counts;
+  }, [allModules]);
+
   const sortedModules = useMemo(() => {
-    let list = [...modules];
-    if (isMvp) list = list.filter((m) => !m.isBulk);
-    return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [modules, isMvp]);
+    const list = sourceFilter === "all" || !showMarketplace ? allModules : allModules.filter((m) => m.source === sourceFilter);
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+  }, [allModules, sourceFilter, showMarketplace]);
 
   const runTestsForModule = useCallback((modId: string) => {
     const mod = modules.find((m) => m.id === modId);
@@ -143,7 +200,7 @@ export default function ModuleList() {
 
     const delay = 600 + Math.random() * 800;
     setTimeout(() => {
-      const result = MOCK_RESULTS[modId] || { passed: 0, failed: 0 };
+      const result = REGISTRY_RESULTS[modId] || { passed: 0, failed: 0 };
       setModules((prev) =>
         prev.map((m) =>
           m.id === modId
@@ -180,6 +237,10 @@ export default function ModuleList() {
   }, [runningAll, runningTests.size]);
 
   const handleToggle = (id: string, newState: boolean) => {
+    if (isMarketplaceId(id)) {
+      setEnabled(id, newState);
+      return;
+    }
     setModules((prev) =>
       prev.map((m) => (m.id === id ? { ...m, enabled: newState } : m))
     );
@@ -262,6 +323,12 @@ export default function ModuleList() {
       </div>
 
       <div className="module-list-toolbar">
+        {showMarketplace && (
+          <Button type="border" onClick={() => navigate("/marketplace")}>
+            <i className="fas fa-shopping-bag" aria-hidden="true" />
+            <span>Browse Marketplace</span>
+          </Button>
+        )}
         <Button type="border" onClick={() => navigate("/instances")}>
           <i className="fas fa-list-ol" aria-hidden="true" />
           <span>Instances and Order</span>
@@ -333,6 +400,23 @@ export default function ModuleList() {
         </div>
       </div>
 
+      {showMarketplace && (
+        <div className="module-source-filter" role="group" aria-label="Filter by source">
+          {SOURCE_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`module-source-filter-btn${sourceFilter === f.id ? " is-active" : ""}`}
+              aria-pressed={sourceFilter === f.id}
+              onClick={() => setSourceFilter(f.id)}
+            >
+              {f.label}
+              <span className="module-source-filter-count">{sourceCounts[f.id] || 0}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Modules table */}
       <div className="module-table-container">
         <table className="module-table">
@@ -380,6 +464,29 @@ export default function ModuleList() {
                   </td>
                   <td className="module-table-td module-col-name">
                     <span className="module-name-text">{mod.name}</span>
+                    {showMarketplace && mod.source && mod.source !== "team" && (() => {
+                      const isModified = !!(mod.isMarketplace && mod.modified);
+                      const tip = [
+                        sourceLabel({ source: mod.source, publisher: mod.publisher || "" }),
+                        isModified
+                          ? `Modified from the published version${mod.modifiedBy ? ` by ${mod.modifiedBy}` : ""}${mod.modifiedAtISO ? ` on ${formatWhen(mod.modifiedAtISO)}` : ""}`
+                          : null,
+                      ].filter(Boolean).join("\n");
+                      return (
+                        <SimpleTooltip title={tip}>
+                          <span className={`module-source-badge module-source-${mod.source}`}>
+                            <i className={SOURCE_ICONS[mod.source] || "fas fa-cube"} aria-hidden="true" />
+                            {mod.source === "tealium" ? "Tealium" : mod.publisher || "Community"}
+                            {isModified && (
+                              <>
+                                <i className="fas fa-pen module-source-modified" aria-hidden="true" />
+                                <span className="sr-only">, modified</span>
+                              </>
+                            )}
+                          </span>
+                        </SimpleTooltip>
+                      );
+                    })()}
                     {mod.isBulk && (
                       <span className="module-bulk-badge">
                         <i className="fas fa-cubes" aria-hidden="true" />

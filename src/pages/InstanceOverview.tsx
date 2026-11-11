@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMvpMode } from "../contexts/MvpContext";
+import { useMarketplace } from "../contexts/MarketplaceContext";
+import { derivedExtension, derivedInstance, derivedParams, installedDerived, type InstalledDerived } from "../data/extensionActivity";
 import Button from "../components/SimpleButton";
 import Badge from "../components/SimpleBadge";
 import SimpleSwitch from "../components/SimpleSwitch";
@@ -184,8 +186,37 @@ function getAllowedScopes(timing: string): ("event" | "visit" | "visitor")[] {
 
 const STATIC_TYPES = new Set(["Static String", "Static Number", "Static Object"]);
 
+function derivedMeta(id: string, name?: string, enabled = true): ExtensionMeta | undefined {
+  const ext = derivedExtension(id);
+  if (!ext) return undefined;
+  return { id, name: name || ext.name, params: derivedParams(ext), isBulk: ext.isBulk, enabled, allowedPositions: ext.allowedPositions };
+}
+
+function findExtensionMeta(id: string): ExtensionMeta | undefined {
+  return EXTENSIONS.find((e) => e.id === id) ?? derivedMeta(id);
+}
+
+function derivedOverviewInstance(item: InstalledDerived, order: number): OverviewInstance {
+  const inst = derivedInstance(item.ext);
+  const rule = PREDEFINED_RULES.find((r) => r.name === inst.trigger);
+  return {
+    id: `${item.id}-${inst.id}`,
+    name: inst.name,
+    extensionId: item.id,
+    extensionName: item.name,
+    timing: inst.timing,
+    timingLabel: inst.timingLabel,
+    enabled: inst.enabled,
+    extensionEnabled: item.enabled,
+    order,
+    rule: rule ? { ...rule } : { ...DEFAULT_RULE },
+    inputMappings: inst.inputMappings,
+    outputMappings: inst.outputMappings,
+  };
+}
+
 function getExtensionBulkTypes(extensionId: string): Set<string> {
-  const ext = EXTENSIONS.find((e) => e.id === extensionId);
+  const ext = findExtensionMeta(extensionId);
   if (!ext) return new Set(AVAILABLE_TYPES);
   const types = new Set<string>();
   ext.params.forEach((p) => { if (!STATIC_TYPES.has(p.type)) types.add(p.type); });
@@ -518,9 +549,9 @@ function RulePicker({ onSelect, onClose }: { onSelect: (rule: TriggerRule) => vo
 
 // ─── Extension Picker Component ─────────────────────────────────
 
-function ExtensionPicker({ onSelect, onClose, hideBulk }: { onSelect: (ext: ExtensionMeta) => void; onClose: () => void; hideBulk?: boolean }) {
+function ExtensionPicker({ extensions, onSelect, onClose, hideBulk }: { extensions: ExtensionMeta[]; onSelect: (ext: ExtensionMeta) => void; onClose: () => void; hideBulk?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  const visibleExtensions = hideBulk ? EXTENSIONS.filter((e) => !e.isBulk) : EXTENSIONS;
+  const visibleExtensions = hideBulk ? extensions.filter((e) => !e.isBulk) : extensions;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -550,8 +581,22 @@ function ExtensionPicker({ onSelect, onClose, hideBulk }: { onSelect: (ext: Exte
 export default function InstanceOverview() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isMvp } = useMvpMode();
-  const [instances, setInstances] = useState(INITIAL_INSTANCES);
+  const { isMvp, showMarketplace } = useMvpMode();
+  const { added } = useMarketplace();
+  const installed = useMemo(() => (showMarketplace ? installedDerived(added, false) : []), [added, showMarketplace]);
+  const allExtensions = useMemo(
+    () => [...EXTENSIONS, ...installed.flatMap((i) => derivedMeta(i.id, i.name, i.enabled) ?? [])],
+    [installed]
+  );
+  // MVP mode hides extensions the doc marks "MVP: No".
+  const visibleExtensions = useMemo(
+    () => (isMvp ? allExtensions.filter((e) => !e.isBulk && (derivedExtension(e.id)?.mvp ?? true)) : allExtensions),
+    [allExtensions, isMvp]
+  );
+  const [instances, setInstances] = useState<OverviewInstance[]>(() => [
+    ...INITIAL_INSTANCES,
+    ...installed.map((item, i) => derivedOverviewInstance(item, INITIAL_INSTANCES.length + i + 1)),
+  ]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -576,12 +621,15 @@ export default function InstanceOverview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getExtension = useCallback((extId: string) => EXTENSIONS.find((e) => e.id === extId), []);
+  const getExtension = useCallback(
+    (extId: string) => allExtensions.find((e) => e.id === extId) ?? findExtensionMeta(extId),
+    [allExtensions]
+  );
 
   const filteredInstances = useMemo(() => {
     let result = instances;
     if (isMvp) {
-      result = result.filter((i) => i.timing === "postVisitor" && !i.bulkMode);
+      result = result.filter((i) => i.timing === "postVisitor" && !i.bulkMode && (derivedExtension(i.extensionId)?.mvp ?? true));
     }
     if (filterExtensions.size > 0) {
       result = result.filter((i) => filterExtensions.has(i.extensionId));
@@ -1269,7 +1317,7 @@ export default function InstanceOverview() {
   const totalCount = instances.length;
 
   // Extension filter options
-  const extFilterOptions = (isMvp ? EXTENSIONS.filter((e) => !e.isBulk) : EXTENSIONS).map((e) => ({ label: e.name, value: e.id }));
+  const extFilterOptions = visibleExtensions.map((e) => ({ label: e.name, value: e.id }));
 
   let globalIdx = 0;
 
@@ -1348,7 +1396,7 @@ export default function InstanceOverview() {
               <span>Add Instance</span>
             </Button>
             {showExtPicker && (
-              <ExtensionPicker onSelect={(ext) => handleAddInstance(ext)} onClose={() => setShowExtPicker(false)} hideBulk={isMvp} />
+              <ExtensionPicker extensions={visibleExtensions} onSelect={(ext) => handleAddInstance(ext)} onClose={() => setShowExtPicker(false)} hideBulk={isMvp} />
             )}
           </div>
         </div>
