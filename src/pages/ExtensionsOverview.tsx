@@ -99,10 +99,10 @@ function formatNumber(n: number): string {
 export default function ExtensionsOverview() {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<"24h" | "7d">("24h");
-  const { isMvp } = useMvpMode();
+  const { isMvp, showMarketplace } = useMvpMode();
   const { added } = useMarketplace();
 
-  const installed = installedDerived(added, isMvp);
+  const installed = showMarketplace ? installedDerived(added, isMvp) : [];
   const allExtensions: ExtensionSummary[] = [
     ...EXTENSIONS,
     ...installed.map((i) => ({ id: i.id, name: i.name, enabled: i.enabled, instances: 1, activeInstances: i.enabled ? 1 : 0, isBulk: i.ext.isBulk })),

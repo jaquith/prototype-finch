@@ -581,9 +581,9 @@ function ExtensionPicker({ extensions, onSelect, onClose, hideBulk }: { extensio
 export default function InstanceOverview() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isMvp } = useMvpMode();
+  const { isMvp, showMarketplace } = useMvpMode();
   const { added } = useMarketplace();
-  const installed = useMemo(() => installedDerived(added, false), [added]);
+  const installed = useMemo(() => (showMarketplace ? installedDerived(added, false) : []), [added, showMarketplace]);
   const allExtensions = useMemo(
     () => [...EXTENSIONS, ...installed.flatMap((i) => derivedMeta(i.id, i.name, i.enabled) ?? [])],
     [installed]

@@ -131,7 +131,7 @@ const RECENT_ERRORS: Record<string, { count: number; message: string; recentInpu
 
 export default function ModuleList() {
   const navigate = useNavigate();
-  const { isMvp } = useMvpMode();
+  const { isMvp, showMarketplace } = useMvpMode();
   const { added, setEnabled } = useMarketplace();
   const [modules, setModules] = useState(MOCK_MODULES);
 
@@ -171,9 +171,9 @@ export default function ModuleList() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
 
   const allModules = useMemo(() => {
-    const list = [...modules, ...marketplaceModules];
+    const list = showMarketplace ? [...modules, ...marketplaceModules] : modules;
     return isMvp ? list.filter((m) => !m.isBulk) : list;
-  }, [modules, marketplaceModules, isMvp]);
+  }, [modules, marketplaceModules, isMvp, showMarketplace]);
 
   const sourceCounts = useMemo(() => {
     const counts: Record<string, number> = { all: allModules.length };
@@ -182,9 +182,9 @@ export default function ModuleList() {
   }, [allModules]);
 
   const sortedModules = useMemo(() => {
-    const list = sourceFilter === "all" ? allModules : allModules.filter((m) => m.source === sourceFilter);
+    const list = sourceFilter === "all" || !showMarketplace ? allModules : allModules.filter((m) => m.source === sourceFilter);
     return [...list].sort((a, b) => a.name.localeCompare(b.name));
-  }, [allModules, sourceFilter]);
+  }, [allModules, sourceFilter, showMarketplace]);
 
   const runTestsForModule = useCallback((modId: string) => {
     const mod = modules.find((m) => m.id === modId);
@@ -323,10 +323,12 @@ export default function ModuleList() {
       </div>
 
       <div className="module-list-toolbar">
-        <Button type="border" onClick={() => navigate("/marketplace")}>
-          <i className="fas fa-shopping-bag" aria-hidden="true" />
-          <span>Browse Marketplace</span>
-        </Button>
+        {showMarketplace && (
+          <Button type="border" onClick={() => navigate("/marketplace")}>
+            <i className="fas fa-shopping-bag" aria-hidden="true" />
+            <span>Browse Marketplace</span>
+          </Button>
+        )}
         <Button type="border" onClick={() => navigate("/instances")}>
           <i className="fas fa-list-ol" aria-hidden="true" />
           <span>Instances and Order</span>
@@ -398,20 +400,22 @@ export default function ModuleList() {
         </div>
       </div>
 
-      <div className="module-source-filter" role="group" aria-label="Filter by source">
-        {SOURCE_FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            className={`module-source-filter-btn${sourceFilter === f.id ? " is-active" : ""}`}
-            aria-pressed={sourceFilter === f.id}
-            onClick={() => setSourceFilter(f.id)}
-          >
-            {f.label}
-            <span className="module-source-filter-count">{sourceCounts[f.id] || 0}</span>
-          </button>
-        ))}
-      </div>
+      {showMarketplace && (
+        <div className="module-source-filter" role="group" aria-label="Filter by source">
+          {SOURCE_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`module-source-filter-btn${sourceFilter === f.id ? " is-active" : ""}`}
+              aria-pressed={sourceFilter === f.id}
+              onClick={() => setSourceFilter(f.id)}
+            >
+              {f.label}
+              <span className="module-source-filter-count">{sourceCounts[f.id] || 0}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Modules table */}
       <div className="module-table-container">
@@ -460,7 +464,7 @@ export default function ModuleList() {
                   </td>
                   <td className="module-table-td module-col-name">
                     <span className="module-name-text">{mod.name}</span>
-                    {mod.source && (
+                    {showMarketplace && mod.source && (
                       <span className={`module-source-badge module-source-${mod.source}`}>
                         <i className={SOURCE_ICONS[mod.source] || "fas fa-cube"} aria-hidden="true" />
                         {sourceLabel({ source: mod.source, publisher: mod.publisher || "" })}

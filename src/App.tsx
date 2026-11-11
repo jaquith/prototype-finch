@@ -18,6 +18,11 @@ function IndexRoute() {
   return isMvp ? <Navigate to="/extensions" replace /> : <ExtensionsOverview />;
 }
 
+function MarketplaceRoute() {
+  const { showMarketplace } = useMvpMode();
+  return showMarketplace ? <Marketplace /> : <Navigate to="/extensions" replace />;
+}
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -33,7 +38,7 @@ const router = createBrowserRouter([
       },
       {
         path: "marketplace",
-        element: <Marketplace />,
+        element: <MarketplaceRoute />,
       },
       {
         path: "attributes",

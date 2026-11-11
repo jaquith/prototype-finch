@@ -731,9 +731,12 @@ function mergeDerivedAttributes(base: Attribute[], installed: InstalledDerived[]
 }
 
 export default function Attributes() {
-  const { isMvp } = useMvpMode();
+  const { isMvp, showMarketplace } = useMvpMode();
   const { added } = useMarketplace();
-  const attributes = useMemo(() => mergeDerivedAttributes(MOCK_ATTRIBUTES, installedDerived(added, false)), [added]);
+  const attributes = useMemo(
+    () => (showMarketplace ? mergeDerivedAttributes(MOCK_ATTRIBUTES, installedDerived(added, false)) : MOCK_ATTRIBUTES),
+    [added, showMarketplace]
+  );
   const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("attr"));
   const [conditionOverrides, setConditionOverrides] = useState<Record<string, EnrichmentCondition[]>>({});

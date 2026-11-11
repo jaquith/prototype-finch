@@ -1,8 +1,14 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import AiAssistant from "./AiAssistant";
-import { useMvpMode } from "../contexts/MvpContext";
+import { useMvpMode, type AppMode } from "../contexts/MvpContext";
 import "./AppLayout.css";
+
+const MODES: { id: AppMode; label: string }[] = [
+  { id: "mvp", label: "MVP" },
+  { id: "full", label: "FULL" },
+  { id: "marketplace", label: "MARKETPLACE" },
+];
 
 const NAV_ITEMS = [
   { id: "attributes", title: "Attributes" },
@@ -14,7 +20,12 @@ const NAV_ITEMS = [
 export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isMvp, setIsMvp } = useMvpMode();
+  const { mode, setMode, isMvp, showMarketplace } = useMvpMode();
+
+  const handleModeChange = (next: AppMode) => {
+    setMode(next);
+    if (next !== "marketplace" && location.pathname === "/marketplace") navigate("/extensions");
+  };
   const [activeTab, setActiveTab] = useState("modules");  // nav id unchanged
 
   const handleTabClick = (id: string) => {
@@ -38,17 +49,16 @@ export default function AppLayout() {
           <span className="header-profile">My Profile</span>
         </div>
         <div className="header-right">
-          <div className="header-mode-toggle">
-            <button
-              type="button"
-              className={`header-mode-btn ${isMvp ? "header-mode-btn-active" : ""}`}
-              onClick={() => setIsMvp(true)}
-            >MVP</button>
-            <button
-              type="button"
-              className={`header-mode-btn ${!isMvp ? "header-mode-btn-active" : ""}`}
-              onClick={() => setIsMvp(false)}
-            >FULL</button>
+          <div className="header-mode-toggle" role="group" aria-label="Prototype mode">
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                aria-pressed={mode === m.id}
+                className={`header-mode-btn ${mode === m.id ? "header-mode-btn-active" : ""}`}
+                onClick={() => handleModeChange(m.id)}
+              >{m.label}</button>
+            ))}
           </div>
           <span className="header-env-badge">Prototype</span>
         </div>
@@ -82,14 +92,16 @@ export default function AppLayout() {
               </button>
               {item.id === "modules" && activeTab === "modules" && (
                 <>
-                  <button
-                    type="button"
-                    className={`sidebar-sub-item ${location.pathname === "/marketplace" ? "sidebar-sub-item-active" : ""}`}
-                    onClick={() => navigate("/marketplace")}
-                  >
-                    <i className="fas fa-shopping-bag sidebar-item-icon" aria-hidden="true" />
-                    Marketplace
-                  </button>
+                  {showMarketplace && (
+                    <button
+                      type="button"
+                      className={`sidebar-sub-item ${location.pathname === "/marketplace" ? "sidebar-sub-item-active" : ""}`}
+                      onClick={() => navigate("/marketplace")}
+                    >
+                      <i className="fas fa-shopping-bag sidebar-item-icon" aria-hidden="true" />
+                      Marketplace
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={`sidebar-sub-item ${location.pathname === "/extensions" || location.pathname.startsWith("/modules/") ? "sidebar-sub-item-active" : ""}`}
