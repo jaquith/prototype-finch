@@ -179,12 +179,14 @@
   background: #006ba8;
   border-color: #006ba8;
 }
-.simple-btn-border {
+.simple-btn-border,
+.simple-btn-secondary {
   background: var(--white, #fff);
   color: var(--gray-900, #303b4c);
   border-color: var(--gray-300, #e4e5e6);
 }
-.simple-btn-border:hover:not(:disabled) {
+.simple-btn-border:hover:not(:disabled),
+.simple-btn-secondary:hover:not(:disabled) {
   background: var(--gray-100, #f4f8fc);
   border-color: var(--gray-400, #d4d6d9);
 }
@@ -197,6 +199,15 @@
 .simple-btn-borderless:hover:not(:disabled) {
   background: var(--gray-100, #f4f8fc);
   color: var(--gray-900, #303b4c);
+}
+.simple-btn-destructive {
+  background: var(--destructive, #e6457a);
+  color: #fff;
+  border-color: var(--destructive, #e6457a);
+}
+.simple-btn-destructive:hover:not(:disabled) {
+  background: var(--destructive-hover, #c32a5d);
+  border-color: var(--destructive-hover, #c32a5d);
 }
 .simple-btn-icon {
   padding: 6px;

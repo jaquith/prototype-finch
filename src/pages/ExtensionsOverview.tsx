@@ -169,7 +169,7 @@ export default function ExtensionsOverview() {
           </div>
           <div className="eo-card-content">
             <span className="eo-card-value">{totalExtensions}</span>
-            <span className="eo-card-label">Functions</span>
+            <span className="eo-card-label">Enrichment Functions</span>
           </div>
         </button>
         <button type="button" className="eo-card" onClick={() => navigate("/instances")}>
@@ -432,7 +432,7 @@ export default function ExtensionsOverview() {
       <div className="eo-quick-links">
         <button type="button" className="eo-quick-link" onClick={() => navigate("/extensions")}>
           <i className="fas fa-file-code" aria-hidden="true" />
-          <span>Function Definitions</span>
+          <span>Enrichment Function Definitions</span>
           <i className="fas fa-arrow-right eo-quick-link-arrow" aria-hidden="true" />
         </button>
         <button type="button" className="eo-quick-link" onClick={() => navigate("/instances")}>

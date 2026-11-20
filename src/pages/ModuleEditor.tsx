@@ -349,7 +349,7 @@ export default function ModuleEditor() {
               : [{ id: "p3", variableName: "score", type: "Number" }]
   );
 
-  const instanceCount = catalogItem || isNew ? 0 : isNormalize ? 2 : isTally ? 2 : isNormalizeStrings ? 2 : isRecency ? 4 : 3;
+  const instanceCount: number = catalogItem || isNew ? 0 : isNormalize ? 2 : isTally ? 2 : isNormalizeStrings ? 2 : isRecency ? 4 : 3;
 
   const [isBulkExtension, setIsBulkExtension] = useState(
     catalogItem ? !!catalogItem.isBulk : isNormalize || isNormalizeStrings
@@ -698,7 +698,7 @@ export default function ModuleEditor() {
 
       <div className="editor-title-row">
         <h1 className="editor-page-title">
-          {isNew ? "New Function" : "Edit Function"}
+          {isNew ? "New Enrichment Function" : "Edit Enrichment Function"}
         </h1>
         <div className="editor-title-right">
           <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: isNew ? "Help me generate a new function" : `Improve or explain the ${name} function` } }))}>
@@ -793,7 +793,7 @@ export default function ModuleEditor() {
                 <div className="pipeline-flow">
                   <span className="pipeline-step">Event Received</span>
                   <span className="pipeline-arrow"><i className="fas fa-arrow-right" aria-hidden="true" /></span>
-                  <span className="pipeline-step">Functions</span>
+                  <span className="pipeline-step">Enrichment Functions</span>
                   <span className="pipeline-arrow"><i className="fas fa-arrow-right" aria-hidden="true" /></span>
                   <span
                     className={`pipeline-step ${activePositionSet.has("eventBefore") ? "pipeline-step-active" : "pipeline-step-module-off"}`}
@@ -1268,7 +1268,7 @@ export default function ModuleEditor() {
         {!isNew && (
           <div className="editor-action-destructive">
             <Button type="destructive" onClick={() => navigate("/extensions")}>
-              Delete Function
+              Delete Enrichment Function
             </Button>
           </div>
         )}

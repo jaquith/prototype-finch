@@ -563,7 +563,7 @@ function ExtensionPicker({ extensions, onSelect, onClose, hideBulk }: { extensio
 
   return (
     <div className="ov-ext-picker" ref={ref}>
-      <div className="ov-ext-picker-header">Select Function</div>
+      <div className="ov-ext-picker-header">Select Enrichment Function</div>
       {visibleExtensions.map((ext) => (
         <button key={ext.id} type="button" className="ov-ext-picker-item"
           onClick={() => { onSelect(ext); onClose(); }}>
@@ -1352,7 +1352,7 @@ export default function InstanceOverview() {
               onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
             >
               <i className="fas fa-filter" aria-hidden="true" />
-              {filterExtensions.size === 0 ? "All Functions" : `${filterExtensions.size} selected`}
+              {filterExtensions.size === 0 ? "All Enrichment Functions" : `${filterExtensions.size} selected`}
               <i className={`fas fa-chevron-${filterDropdownOpen ? "up" : "down"} ov-filter-trigger-arrow`} aria-hidden="true" />
             </button>
             {filterDropdownOpen && (
@@ -1555,7 +1555,7 @@ export default function InstanceOverview() {
         {filteredInstances.length === 0 && (
           <div className="ov-empty">
             <i className="fas fa-inbox" aria-hidden="true" />
-            <p>No instances {filterExtension !== "all" ? "for this function" : "yet"}.</p>
+            <p>No instances {filterExtensions.size > 0 ? "for the selected functions" : "yet"}.</p>
           </div>
         )}
       </div>

@@ -80,7 +80,7 @@ const TYPE_ICONS: Record<AttrType, string> = {
 // Pipeline step definitions matching ModuleList
 const EVENT_STEPS = [
   { id: "event-received", label: "Event Received", type: "plain" },
-  { id: "functions", label: "Functions", type: "plain" },
+  { id: "functions", label: "Enrichment Functions", type: "plain" },
   { id: "pre-event", label: "Pre-Event", type: "ext" },
   { id: "event-enrichments", label: "Event Enrichments", type: "enr" },
   { id: "post-event", label: "Post-Event", type: "ext" },
@@ -883,14 +883,14 @@ export default function Attributes() {
               <div className="attr-detail-section">
                 <div className="attr-detail-section-header">
                   <span>Enrichment Functions ({selectedAttr.extensions.length})</span>
-                  <span className="attr-detail-section-help"> - Function instances that read or write this attribute</span>
+                  <span className="attr-detail-section-help"> - Enrichment function instances that read or write this attribute</span>
                 </div>
                 {selectedAttr.extensions.map((ext, idx) => (
                   <div key={idx} className={`attr-detail-ext-card ${ext.isBulk ? "attr-detail-ext-card-bulk" : ""}`}>
                     <div className="attr-detail-ext-header">
                       <i className="fas fa-code attr-detail-ext-icon" aria-hidden="true" />
                       <span className="attr-detail-ext-name">{ext.extensionName}</span>
-                      <Badge type={ext.direction === "input" ? "informative" : "success"} label={ext.direction} />
+                      <Badge type={ext.direction === "input" ? "informative" : "positive"} label={ext.direction} />
                       {ext.isBulk && (
                         <span className="attr-detail-ext-bulk-badge">
                           <i className="fas fa-cubes" aria-hidden="true" />

@@ -310,7 +310,7 @@ export default function ModuleList() {
     <div className="module-list-page">
       <div className="module-list-header">
         <div className="module-list-title-section">
-          <h1 className="module-list-title">Function Definitions</h1>
+          <h1 className="module-list-title">Enrichment Function Definitions</h1>
           <SimpleTooltip title="Enrichment functions are replay-safe and participate in event replay during visitor stitching, just like enrichments.">
             <i className="fas fa-info-circle module-info-icon" />
           </SimpleTooltip>
@@ -355,7 +355,7 @@ export default function ModuleList() {
         </button>
         <Button type="primary" onClick={() => navigate("/modules/new")}>
           <i className="fas fa-plus" aria-hidden="true" />
-          <span>New Function</span>
+          <span>New Enrichment Function</span>
         </Button>
       </div>
 
@@ -369,7 +369,7 @@ export default function ModuleList() {
               <div className="pipeline-flow">
                 <span className="pipeline-step">Event Received</span>
                 <span className="pipeline-arrow"><i className="fas fa-arrow-right" aria-hidden="true" /></span>
-                <span className="pipeline-step">Functions</span>
+                <span className="pipeline-step">Enrichment Functions</span>
                 <span className="pipeline-arrow"><i className="fas fa-arrow-right" aria-hidden="true" /></span>
                 <span className="pipeline-step pipeline-step-highlight"><i className="fas fa-code" aria-hidden="true" /> Pre-Event</span>
                 <span className="pipeline-arrow"><i className="fas fa-arrow-right" aria-hidden="true" /></span>
@@ -605,7 +605,7 @@ export default function ModuleList() {
           <p>No enrichment functions configured yet.</p>
           <Button type="primary" onClick={() => navigate("/modules/new")}>
             <i className="fas fa-plus" aria-hidden="true" />
-            <span>Create Your First Function</span>
+            <span>Create Your First Enrichment Function</span>
           </Button>
         </div>
       )}

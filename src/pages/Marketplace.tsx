@@ -167,7 +167,7 @@ export default function Marketplace() {
           <span className="mkt-title-icon" aria-hidden="true">
             <i className="fas fa-shopping-bag" />
           </span>
-          <h1 className="mkt-title">Function Marketplace</h1>
+          <h1 className="mkt-title">Enrichment Function Marketplace</h1>
           <span className="mkt-count-badge">{addedCount} added</span>
         </div>
         <p className="mkt-description">
