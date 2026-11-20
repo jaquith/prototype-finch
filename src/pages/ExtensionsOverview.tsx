@@ -148,16 +148,16 @@ export default function ExtensionsOverview() {
   return (
     <div className="eo-page">
       <nav className="editor-breadcrumb">
-        <span className="breadcrumb-current">Server-Side Extensions</span>
+        <span className="breadcrumb-current">Enrichment Functions</span>
       </nav>
 
       <div className="eo-header">
         <div className="eo-title-row">
-          <h1 className="eo-title">Server-Side Extensions</h1>
-          <Badge type="informative" label={`${totalExtensions} extensions`} />
+          <h1 className="eo-title">Enrichment Functions</h1>
+          <Badge type="informative" label={`${totalExtensions} functions`} />
         </div>
         <p className="eo-description">
-          Overview of all server-side extensions, execution metrics, and error health across the pipeline.
+          Overview of all enrichment functions, execution metrics, and error health across the pipeline.
         </p>
       </div>
 
@@ -169,7 +169,7 @@ export default function ExtensionsOverview() {
           </div>
           <div className="eo-card-content">
             <span className="eo-card-value">{totalExtensions}</span>
-            <span className="eo-card-label">Extensions</span>
+            <span className="eo-card-label">Enrichment Functions</span>
           </div>
         </button>
         <button type="button" className="eo-card" onClick={() => navigate("/instances")}>
@@ -216,7 +216,7 @@ export default function ExtensionsOverview() {
         {visibleErrors.length === 0 ? (
           <div className="eo-empty-state">
             <i className="fas fa-check-circle" aria-hidden="true" />
-            <p>No errors detected. All extensions are running smoothly.</p>
+            <p>No errors detected. All functions are running smoothly.</p>
           </div>
         ) : (
           <div className="eo-error-list">
@@ -295,7 +295,7 @@ export default function ExtensionsOverview() {
           <table className="eo-usage-table">
             <thead>
               <tr>
-                <th className="eo-usage-th">Extension</th>
+                <th className="eo-usage-th">Function</th>
                 <th className="eo-usage-th eo-usage-th-num">Executions</th>
                 <th className="eo-usage-th eo-usage-th-num">Avg Duration</th>
                 <th className="eo-usage-th eo-usage-th-num">Error Rate</th>
@@ -432,7 +432,7 @@ export default function ExtensionsOverview() {
       <div className="eo-quick-links">
         <button type="button" className="eo-quick-link" onClick={() => navigate("/extensions")}>
           <i className="fas fa-file-code" aria-hidden="true" />
-          <span>Extension Definitions</span>
+          <span>Enrichment Function Definitions</span>
           <i className="fas fa-arrow-right eo-quick-link-arrow" aria-hidden="true" />
         </button>
         <button type="button" className="eo-quick-link" onClick={() => navigate("/instances")}>

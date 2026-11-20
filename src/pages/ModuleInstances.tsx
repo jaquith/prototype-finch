@@ -1054,7 +1054,7 @@ export default function ModuleInstances() {
       };
     }
     if (lower.includes("what") && lower.includes("instance")) {
-      return { text: "**Instances** let you reuse the same extension logic with different attribute bindings.\n\nFor example, you could have one instance that computes engagement from page views, and another that computes it from lifetime value — both using the same extension code.\n\nEach instance has:\n\u2022 **Input Mappings** — which real attributes feed into the extension's variables\n\u2022 **Output Mappings** — where results are written back\n\u2022 **Trigger Rule** — which events cause this instance to run" };
+      return { text: "**Instances** let you reuse the same function logic with different attribute bindings.\n\nFor example, you could have one instance that computes engagement from page views, and another that computes it from lifetime value — both using the same function code.\n\nEach instance has:\n\u2022 **Input Mappings** — which real attributes feed into the function's variables\n\u2022 **Output Mappings** — where results are written back\n\u2022 **Trigger Rule** — which events cause this instance to run" };
     }
     if (lower.includes("rule") || lower.includes("trigger") || lower.includes("filter")) {
       return { text: "**Trigger Rules** control when an instance runs.\n\n\u2022 **All Events** (default) — runs on every event\n\u2022 **Predefined rules** — e.g., Page View Events, Purchase Events\n\u2022 **Custom rules** — combine conditions with AND/OR logic\n\nClick 'Change' on any instance's trigger rule to pick a different one." };
@@ -1078,10 +1078,10 @@ export default function ModuleInstances() {
       return { text: "You can duplicate any instance by clicking the copy icon on its header row. The duplicate will start with the same mappings and rule as the original, and you can modify it independently." };
     }
     if (lower.includes("delete") || lower.includes("remove")) {
-      return { text: "To delete an instance, click the trash icon on its header row. This removes all its mappings and trigger rule configuration. The extension itself and other instances are not affected." };
+      return { text: "To delete an instance, click the trash icon on its header row. This removes all its mappings and trigger rule configuration. The function itself and other instances are not affected." };
     }
     if (lower.includes("parent") || lower.includes("enable") || lower.includes("disable") || lower.includes("active")) {
-      return { text: `The parent extension **${extensionName}** is currently **${parentEnabled ? "active" : "inactive"}**.\n\n${parentEnabled ? "All enabled instances will execute when triggered." : "While the parent is inactive, no instances will run. Instance toggle positions are preserved for when you re-enable."}\n\nUse the toggle in the status bar above to change this.` };
+      return { text: `The parent function **${extensionName}** is currently **${parentEnabled ? "active" : "inactive"}**.\n\n${parentEnabled ? "All enabled instances will execute when triggered." : "While the parent is inactive, no instances will run. Instance toggle positions are preserved for when you re-enable."}\n\nUse the toggle in the status bar above to change this.` };
     }
     return { text: "I can help you manage instances. Try asking me to:\n\n\u2022 Add a new instance\n\u2022 What are instances?\n\u2022 What are trigger rules?\n\u2022 Check unmapped variables\n\u2022 How do I duplicate an instance?" };
   }, [extensionName, instances, inputParams, outputParams, parentEnabled]);
@@ -1317,7 +1317,7 @@ export default function ModuleInstances() {
       {/* Breadcrumb */}
       <nav className="editor-breadcrumb">
         <button type="button" className="breadcrumb-link" onClick={() => navigate("/extensions")}>
-          Extension Definitions
+          Function Definitions
         </button>
         <span className="breadcrumb-separator">/</span>
         <button type="button" className="breadcrumb-link" onClick={() => navigate(`/modules/${id}`)}>
@@ -1369,7 +1369,7 @@ export default function ModuleInstances() {
             isStandAlone
             on={parentEnabled}
             onChange={handleParentToggle}
-            inputProps={{ "aria-label": `Toggle extension ${extensionName}` }}
+            inputProps={{ "aria-label": `Toggle function ${extensionName}` }}
           />
         </div>
       </div>
@@ -1377,13 +1377,13 @@ export default function ModuleInstances() {
       {!parentEnabled && (
         <div className="instances-inactive-notice">
           <i className="fas fa-info-circle" aria-hidden="true" />
-          Extension is inactive. Instance toggles are preserved but will not execute until the extension is re-activated.
+          Function is inactive. Instance toggles are preserved but will not execute until the function is re-activated.
         </div>
       )}
 
       <p className="instances-description">
-        Each instance maps real attributes to the extension's defined variables.
-        The extension code references variables generically — instances provide the concrete attribute bindings.
+        Each instance maps real attributes to the function's defined variables.
+        The function code references variables generically — instances provide the concrete attribute bindings.
       </p>
 
 
@@ -1519,7 +1519,7 @@ export default function ModuleInstances() {
                       <div className="inst-mapping-mode-radios">
                         {([
                           { id: "bulk" as MappingMode, label: "Process all attributes of type", icon: "fas fa-cubes", desc: "Pick type(s) and scope. Add exclusions if needed." },
-                          { id: "single-attribute" as MappingMode, label: "Attribute list", icon: "fas fa-list", desc: "Provide a list of attributes to apply the extension to." },
+                          { id: "single-attribute" as MappingMode, label: "Attribute list", icon: "fas fa-list", desc: "Provide a list of attributes to apply the function to." },
                         ]).map((opt) => (
                           <label
                             key={opt.id}
@@ -1690,7 +1690,7 @@ export default function ModuleInstances() {
                   {currentMode === "single-attribute" && (
                     <div className="inst-single-attr-panel">
                       <p className="inst-single-attr-hint">
-                        The extension will run once per attribute listed below, binding it to both the input and output variable.
+                        The function will run once per attribute listed below, binding it to both the input and output variable.
                       </p>
                       <div className="inst-single-attr-list">
                         {(inst.attributeList || []).map((attr) => (
@@ -1838,7 +1838,7 @@ export default function ModuleInstances() {
               <h3 className="scope-change-title">Enable with failing tests?</h3>
             </div>
             <p className="scope-change-description">
-              <strong>{failedCount}</strong> of {totalCount} tests failed for <strong>{extensionName}</strong>. Are you sure you want to enable this extension?
+              <strong>{failedCount}</strong> of {totalCount} tests failed for <strong>{extensionName}</strong>. Are you sure you want to enable this function?
             </p>
             <div className="instances-confirm-results">
               {testResults?.filter((t) => t.status === "fail").map((t, i) => (

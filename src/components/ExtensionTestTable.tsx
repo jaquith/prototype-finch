@@ -222,7 +222,7 @@ export default function ExtensionTestTable({
                       <div className="ext-test-columns">
                         <fieldset className="ext-test-group">
                           <legend>Given</legend>
-                          {namedInputs.length === 0 && <p className="op-help">This extension has no inputs.</p>}
+                          {namedInputs.length === 0 && <p className="op-help">This function has no inputs.</p>}
                           {namedInputs.map((p) => (
                             <label key={`i-${p.variableName}`} className="ext-field">
                               <span className="ext-field-label">

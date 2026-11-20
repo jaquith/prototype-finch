@@ -183,10 +183,10 @@ export const MARKETPLACE_CATEGORIES = Array.from(
 export const TIER_LABELS: Record<MarketplaceTier, { title: string; blurb: string }> = {
   core: {
     title: "By Tealium",
-    blurb: "First-party extensions, curated and verified by Tealium.",
+    blurb: "First-party functions, curated and verified by Tealium.",
   },
   community: {
     title: "Community",
-    blurb: "Extensions published and maintained by the community.",
+    blurb: "Functions published and maintained by the community.",
   },
 };

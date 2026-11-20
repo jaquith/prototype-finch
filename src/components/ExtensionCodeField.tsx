@@ -37,7 +37,7 @@ export default function ExtensionCodeField({ header, footer, value, onChange }: 
 
   return (
     <div className="op-code ext-code">
-      <div className="ext-code-fixed-block" title="Generated from the extension's inputs and outputs. Edit the function body only.">
+      <div className="ext-code-fixed-block" title="Generated from the function's inputs and outputs. Edit the function body only.">
         <div className="op-code-lines" aria-hidden="true">{numbers(1, headerLines)}</div>
         <pre className="op-code-fixed" dangerouslySetInnerHTML={{ __html: highlightJS(header) }} />
         <i className="fas fa-lock ext-code-lock" aria-hidden="true" />
@@ -55,7 +55,7 @@ export default function ExtensionCodeField({ header, footer, value, onChange }: 
             className="op-code-area"
             value={value}
             spellCheck={false}
-            aria-label="Extension function body"
+            aria-label="Function body"
             rows={Math.max(bodyLines, 6)}
             onChange={(e) => onChange(e.target.value)}
             onScroll={syncScroll}

@@ -946,7 +946,7 @@ export const EXTENSIONS: ExtensionDefinition[] = [
     "id": "13",
     "name": "Shared Device Detection",
     "description": "Flags a profile that has seen more than one customer ID, such as a family tablet, so you can keep it out of audiences.",
-    "replaces": "9 attributes and a webhook that sends events back into Collect, which are billed. This extension replaces the part that flags this profile. Flagging the profiles of the other people who used the device still needs the webhook, because an extension only writes to the visitor it runs for.",
+    "replaces": "9 attributes and a webhook that sends events back into Collect, which are billed. This function replaces the part that flags this profile. Flagging the profiles of the other people who used the device still needs the webhook, because a function only writes to the visitor it runs for.",
     "source": "tealium",
     "publisher": "",
     "category": "Privacy and identity",
@@ -1759,7 +1759,7 @@ export const EXTENSIONS: ExtensionDefinition[] = [
         "direction": "input",
         "type": "String",
         "exampleAttribute": "provided by framework",
-        "description": "Which trigger ran the extension"
+        "description": "Which trigger ran the function"
       },
       {
         "id": "p7",
@@ -2204,7 +2204,7 @@ export const EXTENSIONS: ExtensionDefinition[] = [
         "direction": "input",
         "type": "String",
         "exampleAttribute": "provided by framework",
-        "description": "Which trigger ran the extension"
+        "description": "Which trigger ran the function"
       },
       {
         "id": "p11",
