@@ -128,7 +128,7 @@ const CODE_BODY_RECENCY = `  // Compute recency-frequency score
   output.rfScore = Math.round((recency * 0.6 + frequency * 0.4) * 100);
 `;
 
-const DEFAULT_NEW_CODE_BODY = `  // Your extension logic here\n`;
+const DEFAULT_NEW_CODE_BODY = `  // Your function logic here\n`;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -413,7 +413,7 @@ export default function ModuleEditor() {
   // Build the dynamic function signature + header comment from current params
   const buildCodeSignature = useCallback(() => {
     const lines: string[] = [];
-    lines.push("// ── Extension Interface ──────────────────────────────");
+    lines.push("// ── Function Interface ──────────────────────────────");
     if (inputParams.length > 0) {
       lines.push("//  input:");
       inputParams.forEach((p) => {
@@ -497,9 +497,9 @@ export default function ModuleEditor() {
       return { text: "To cap the score at 100, add this before setting the output:\n\n```\nconst capped = Math.min(score, 100);\noutput.score = capped;\n```" };
     }
     if (lower.includes("explain") || lower.includes("what does") || lower.includes("how does")) {
-      return { text: "This extension reads values from `input`, applies its logic, and writes results to `output`. The function signature and `return output` are generated from the extension's inputs and outputs, so you only edit the body." };
+      return { text: "This function reads values from `input`, applies its logic, and writes results to `output`. The function signature and `return output` are generated from the function's inputs and outputs, so you only edit the body." };
     }
-    return { text: "I can help with both your **extension code** and **tests**. Try asking me to:\n\n**Code:**\n\u2022 Add error handling\n\u2022 Explain this code\n\n**Tests:**\n\u2022 Add a test\n\u2022 Why is my test failing?\n\u2022 Delete failing tests" };
+    return { text: "I can help with both your **function code** and **tests**. Try asking me to:\n\n**Code:**\n\u2022 Add error handling\n\u2022 Explain this code\n\n**Tests:**\n\u2022 Add a test\n\u2022 Why is my test failing?\n\u2022 Delete failing tests" };
   }, [failedTests]);
 
   const handleEditorAction = useCallback((action: { type: string; label: string; detail: string; id: string }, accepted: boolean) => {
@@ -688,20 +688,20 @@ export default function ModuleEditor() {
           className="breadcrumb-link"
           onClick={() => navigate("/extensions")}
         >
-          Extension Definitions
+          Function Definitions
         </button>
         <span className="breadcrumb-separator">/</span>
         <span className="breadcrumb-current">
-          {isNew ? "New Extension" : name}
+          {isNew ? "New Function" : name}
         </span>
       </nav>
 
       <div className="editor-title-row">
         <h1 className="editor-page-title">
-          {isNew ? "New Extension" : "Edit Extension"}
+          {isNew ? "New Function" : "Edit Function"}
         </h1>
         <div className="editor-title-right">
-          <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: isNew ? "Help me generate a new extension" : `Improve or explain the ${name} extension` } }))}>
+          <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: isNew ? "Help me generate a new function" : `Improve or explain the ${name} function` } }))}>
             <i className="fas fa-magic" aria-hidden="true" /> {isNew ? "Generate" : "Improve / Explain"}
           </button>
           {!isNew && (
@@ -723,7 +723,7 @@ export default function ModuleEditor() {
                 isStandAlone
                 on={extensionEnabled}
                 onChange={setExtensionEnabled}
-                inputProps={{ "aria-label": `Toggle extension ${name}` }}
+                inputProps={{ "aria-label": `Toggle function ${name}` }}
               />
             </div>
           )}
@@ -735,13 +735,13 @@ export default function ModuleEditor() {
         <div className="editor-section-header editor-section-header-collapsible" onClick={() => toggle("details")}>
           <h2 className="editor-section-title">
             <i className={`fas fa-chevron-${collapsed.details ? "right" : "down"}`} aria-hidden="true" />
-            Extension Details
+            Function Details
           </h2>
         </div>
         {!collapsed.details && (
           <>
             <div className="editor-field">
-              <label className="editor-field-label">Extension Name</label>
+              <label className="editor-field-label">Function Name</label>
               <Textbox
                 value={name}
                 onChange={setName}
@@ -758,7 +758,7 @@ export default function ModuleEditor() {
                 <TextArea
                   value={description}
                   onChange={setDescription}
-                  placeholder="Describe what this extension does..."
+                  placeholder="Describe what this function does..."
                   height="80px"
                   width="100%"
                 />
@@ -776,7 +776,7 @@ export default function ModuleEditor() {
             Execution Timing
           </h2>
           <span onClick={(e) => e.stopPropagation()}>
-            <SimpleTooltip title="Server-side extensions are replay-safe and participate in event replay during visitor stitching.">
+            <SimpleTooltip title="Enrichment functions are replay-safe and participate in event replay during visitor stitching.">
               <i className="fas fa-info-circle editor-section-info" />
             </SimpleTooltip>
           </span>
@@ -853,7 +853,7 @@ export default function ModuleEditor() {
           {isMvp ? (
             <p className="editor-timing-multi-hint">
               <i className="fas fa-info-circle" aria-hidden="true" />
-              In MVP mode, extensions run at <strong>Post-Visitor</strong> only — after visit/visitor enrichments, before audiences.
+              In MVP mode, functions run at <strong>Post-Visitor</strong> only — after visit/visitor enrichments, before audiences.
             </p>
           ) : (
             <p className="editor-timing-multi-hint">
@@ -920,7 +920,7 @@ export default function ModuleEditor() {
             <i className="fas fa-cubes" aria-hidden="true" /> Bulk Mode
           </h2>
           <span onClick={(e) => e.stopPropagation()}>
-            <SimpleTooltip title="Bulk extensions iterate over all attributes matching the selected types and scopes, instead of mapping specific attributes.">
+            <SimpleTooltip title="Bulk functions iterate over all attributes matching the selected types and scopes, instead of mapping specific attributes.">
               <i className="fas fa-info-circle editor-section-info" />
             </SimpleTooltip>
           </span>
@@ -943,7 +943,7 @@ export default function ModuleEditor() {
           <div className="editor-bulk-types-section">
             <label className="editor-field-label">
               Supported Types
-              <span className="editor-field-hint">Select which attribute types this extension can process. Types are shown per scope.</span>
+              <span className="editor-field-hint">Select which attribute types this function can process. Types are shown per scope.</span>
             </label>
             <div className="editor-bulk-scope-rows">
               {BULK_SCOPE_TYPES.map((row) => (
@@ -1156,10 +1156,10 @@ export default function ModuleEditor() {
         <div className="editor-section-header editor-section-header-collapsible" onClick={() => toggle("code")}>
           <h2 className="editor-section-title">
             <i className={`fas fa-chevron-${collapsed.code ? "right" : "down"}`} aria-hidden="true" />
-            Extension Code
+            Function Code
           </h2>
           <div className="editor-section-header-actions" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: `Generate or improve code for the ${name} extension` } }))}>
+            <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: `Generate or improve code for the ${name} function` } }))}>
               <i className="fas fa-magic" aria-hidden="true" /> Generate or improve code
             </button>
             <span className="editor-code-line-count">{codeLineCount} lines</span>
@@ -1168,7 +1168,7 @@ export default function ModuleEditor() {
         {!collapsed.code && (
           <>
             <p className="ext-code-note">
-              <i className="fas fa-lock" aria-hidden="true" /> The signature and <code>return output</code> are generated from this extension&apos;s inputs and outputs. Only the function body is editable.
+              <i className="fas fa-lock" aria-hidden="true" /> The signature and <code>return output</code> are generated from this function&apos;s inputs and outputs. Only the function body is editable.
             </p>
             <ExtensionCodeField header={codeHeader} footer={CODE_FOOTER} value={codeBody} onChange={setCodeBody} />
           </>
@@ -1183,7 +1183,7 @@ export default function ModuleEditor() {
             <i className="fas fa-flask" aria-hidden="true" /> Tests
           </h2>
           <div className="editor-section-header-actions" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: `Improve tests for the ${name} extension` } }))}>
+            <button type="button" className="test-ai-btn" onClick={() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: `Improve tests for the ${name} function` } }))}>
               <i className="fas fa-magic" aria-hidden="true" /> Improve tests
             </button>
           </div>
@@ -1268,7 +1268,7 @@ export default function ModuleEditor() {
         {!isNew && (
           <div className="editor-action-destructive">
             <Button type="destructive" onClick={() => navigate("/extensions")}>
-              Delete Extension
+              Delete Function
             </Button>
           </div>
         )}

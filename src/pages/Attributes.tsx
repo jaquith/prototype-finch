@@ -347,7 +347,7 @@ const MOCK_ATTRIBUTES: Attribute[] = [
       { source: "Increment on Page View", sourceType: "rule", description: "For Number page_view_count, increment by 1 when tealium_event equals page_view", when: "Any Event", rule: "Page View Rule" },
     ],
     linkedEnrichments: [
-      { action: "Compute Engagement Score", target: "engagement_score", targetId: "a10", description: "Used as input to the Compute Engagement Score extension", when: "Post-Visitor" },
+      { action: "Compute Engagement Score", target: "engagement_score", targetId: "a10", description: "Used as input to the Compute Engagement Score function", when: "Post-Visitor" },
     ],
     extensions: [
       { extensionName: "Compute Engagement Score", instanceName: "Score from page views", scope: "Post-Visitor", direction: "input", variableName: "viewCount" },
@@ -383,7 +383,7 @@ const MOCK_ATTRIBUTES: Attribute[] = [
       { source: "Increment on Purchase", sourceType: "rule", description: "For Number purchase_count, increment by 1 when tealium_event equals purchase", when: "Any Event", rule: "Purchase Event" },
     ],
     linkedEnrichments: [
-      { action: "Compute Engagement Score", target: "engagement_score", targetId: "a10", description: "Used as input to the Compute Engagement Score extension", when: "Post-Visitor" },
+      { action: "Compute Engagement Score", target: "engagement_score", targetId: "a10", description: "Used as input to the Compute Engagement Score function", when: "Post-Visitor" },
     ],
     extensions: [
       { extensionName: "Compute Engagement Score", instanceName: "Score from page views", scope: "Post-Visitor", direction: "input", variableName: "purchaseCount" },
@@ -485,7 +485,7 @@ const MOCK_ATTRIBUTES: Attribute[] = [
     name: "page_title",
     type: "String",
     scope: "Event",
-    notes: "Page title from the data layer, normalized by extension",
+    notes: "Page title from the data layer, normalized by function",
     enrichments: [],
     extensions: [
       { extensionName: "Normalize Page URLs", instanceName: "Normalize page_title URL", scope: "Pre-Event", direction: "output", variableName: "value" },
@@ -882,8 +882,8 @@ export default function Attributes() {
             {selectedAttr.extensions && selectedAttr.extensions.length > 0 && (
               <div className="attr-detail-section">
                 <div className="attr-detail-section-header">
-                  <span>Server-Side Extensions ({selectedAttr.extensions.length})</span>
-                  <span className="attr-detail-section-help"> - Extension instances that read or write this attribute</span>
+                  <span>Enrichment Functions ({selectedAttr.extensions.length})</span>
+                  <span className="attr-detail-section-help"> - Function instances that read or write this attribute</span>
                 </div>
                 {selectedAttr.extensions.map((ext, idx) => (
                   <div key={idx} className={`attr-detail-ext-card ${ext.isBulk ? "attr-detail-ext-card-bulk" : ""}`}>

@@ -250,12 +250,12 @@ export default function ModuleList() {
     const lower = msg.toLowerCase();
     if (lower.includes("create") || lower.includes("new") || lower.includes("add extension")) {
       return {
-        text: "I can create a new extension for you. What should it do? Here's a quick-start option:",
-        action: { type: "create-extension", label: "Create new extension", detail: "Opens the extension editor with a blank template so you can define inputs, outputs, and code.", id: `action-${Date.now()}` },
+        text: "I can create a new function for you. What should it do? Here's a quick-start option:",
+        action: { type: "create-extension", label: "Create new function", detail: "Opens the function editor with a blank template so you can define inputs, outputs, and code.", id: `action-${Date.now()}` },
       };
     }
     if (lower.includes("what") && (lower.includes("extension") || lower.includes("module"))) {
-      return { text: "**Server-Side Extensions** are user-authored code modules that run inside AudienceStream's processing pipeline. They can:\n\n\u2022 Read event and visitor/visit attributes as **inputs**\n\u2022 Compute new values using custom JavaScript logic\n\u2022 Write results back as **outputs** to attributes\n\nEach extension can have multiple **instances**, each mapping different real attributes to the extension's generic variable names." };
+      return { text: "**Enrichment Functions** are user-authored code modules that run inside AudienceStream's processing pipeline. They can:\n\n\u2022 Read event and visitor/visit attributes as **inputs**\n\u2022 Compute new values using custom JavaScript logic\n\u2022 Write results back as **outputs** to attributes\n\nEach function can have multiple **instances**, each mapping different real attributes to the function's generic variable names." };
     }
     if (lower.includes("pipeline") || lower.includes("timing") || lower.includes("order")) {
       return { text: "The processing pipeline has these stages:\n\n**Event scope:**\n1. Event Received \u2192 Functions \u2192 **Pre-Event** \u2192 Event Enrichments \u2192 **Post-Event** \u2192 Event Activations\n\n**Visit/Visitor scope:**\n1. **Pre-Visitor** \u2192 Visit/Visitor Enrichments \u2192 **Post-Visitor** \u2192 Audiences \u2192 **Post-Audience** \u2192 Visitor Activations\n\nExtensions run at the bold points. Choose the timing based on which attributes you need access to." };
@@ -263,38 +263,38 @@ export default function ModuleList() {
     if (lower.includes("run") && lower.includes("test")) {
       const activeWithTests = modules.filter((m) => m.enabled && m.tests?.total > 0);
       if (activeWithTests.length === 0) {
-        return { text: "No active extensions with tests to run." };
+        return { text: "No active functions with tests to run." };
       }
       return {
-        text: `I can run tests for all ${activeWithTests.length} active extension(s).`,
+        text: `I can run tests for all ${activeWithTests.length} active function(s).`,
         action: { type: "run-all-tests", label: "Run all active tests", detail: activeWithTests.map((m) => `\u2022 ${m.name} (${m.tests.total} tests)`).join("\n"), id: `action-${Date.now()}` },
       };
     }
     if (lower.includes("fail") || lower.includes("broken") || lower.includes("status")) {
       const failing = modules.filter((m) => m.tests?.failed > 0);
       if (failing.length > 0) {
-        return { text: `${failing.length} extension(s) have failing tests:\n\n${failing.map((m) => `\u2022 **${m.name}** \u2014 ${m.tests.failed} of ${m.tests.total} failed`).join("\n")}\n\nOpen each extension to investigate and fix the failures.` };
+        return { text: `${failing.length} function(s) have failing tests:\n\n${failing.map((m) => `\u2022 **${m.name}** \u2014 ${m.tests.failed} of ${m.tests.total} failed`).join("\n")}\n\nOpen each function to investigate and fix the failures.` };
       }
-      return { text: "All extensions with tests are currently passing." };
+      return { text: "All functions with tests are currently passing." };
     }
     if (lower.includes("instance")) {
-      return { text: "**Instances** map real attributes to an extension's generic variables. Each extension can have multiple instances with different attribute bindings and trigger rules.\n\nClick the instance count in the table to manage instances for any extension." };
+      return { text: "**Instances** map real attributes to a function's generic variables. Each function can have multiple instances with different attribute bindings and trigger rules.\n\nClick the instance count in the table to manage instances for any function." };
     }
     if (lower.includes("disable") || lower.includes("enable") || lower.includes("toggle")) {
-      return { text: "You can enable or disable extensions using the toggle switch in the **Status** column. Disabled extensions won't execute in the pipeline, but their configuration and instances are preserved." };
+      return { text: "You can enable or disable functions using the toggle switch in the **Status** column. Disabled functions won't execute in the pipeline, but their configuration and instances are preserved." };
     }
     if (lower.includes("write") && lower.includes("test")) {
       const noTests = modules.filter((m) => m.tests?.total === 0);
       const withTests = modules.filter((m) => m.tests?.total > 0);
       const list = noTests.length > 0
-        ? `These extensions have **no tests yet**:\n\n${noTests.map((m) => `\u2022 **${m.name}**`).join("\n")}\n\nClick **Edit** on any extension to open the code editor, where I can help you write tests for it.`
-        : `All ${withTests.length} extensions already have tests. To add more, click **Edit** on any extension and I'll help you write additional test cases in the editor.`;
+        ? `These functions have **no tests yet**:\n\n${noTests.map((m) => `\u2022 **${m.name}**`).join("\n")}\n\nClick **Edit** on any function to open the code editor, where I can help you write tests for it.`
+        : `All ${withTests.length} functions already have tests. To add more, click **Edit** on any function and I'll help you write additional test cases in the editor.`;
       return { text: list };
     }
     if (lower.includes("scope") || lower.includes("multi")) {
-      return { text: "Extensions can run at one or more pipeline positions depending on the data types they use. The **Available Scopes** column shows which positions each extension supports.\n\nA filled dot means the extension can run at that position. Extensions using only basic types (String, Number, Boolean) can run anywhere, while those using Tally or Timeline types are limited to Visit/Visitor scopes." };
+      return { text: "Functions can run at one or more pipeline positions depending on the data types they use. The **Available Scopes** column shows which positions each function supports.\n\nA filled dot means the function can run at that position. Functions using only basic types (String, Number, Boolean) can run anywhere, while those using Tally or Timeline types are limited to Visit/Visitor scopes." };
     }
-    return { text: "I can help you manage your extensions. Try asking me to:\n\n\u2022 Create a new extension\n\u2022 What are extensions?\n\u2022 How does the pipeline work?\n\u2022 Run all tests\n\u2022 Which extensions are failing?\n\u2022 How do scopes work?" };
+    return { text: "I can help you manage your functions. Try asking me to:\n\n\u2022 Create a new function\n\u2022 What are functions?\n\u2022 How does the pipeline work?\n\u2022 Run all tests\n\u2022 Which functions are failing?\n\u2022 How do scopes work?" };
   }, [modules]);
 
   const handleListAction = useCallback((action: { type: string; label: string; detail: string; id: string }, accepted: boolean) => {
@@ -310,14 +310,14 @@ export default function ModuleList() {
     <div className="module-list-page">
       <div className="module-list-header">
         <div className="module-list-title-section">
-          <h1 className="module-list-title">Extension Definitions</h1>
-          <SimpleTooltip title="Server-side extensions are replay-safe and participate in event replay during visitor stitching, just like enrichments.">
+          <h1 className="module-list-title">Function Definitions</h1>
+          <SimpleTooltip title="Enrichment functions are replay-safe and participate in event replay during visitor stitching, just like enrichments.">
             <i className="fas fa-info-circle module-info-icon" />
           </SimpleTooltip>
         </div>
         <p className="module-list-description">
-          User-authored server-side extensions that can directly read and write
-          visitor/visit attributes. Extensions execute at specific points in the
+          User-authored enrichment functions that can directly read and write
+          visitor/visit attributes. Functions execute at specific points in the
           AudienceStream processing pipeline.
         </p>
       </div>
@@ -350,12 +350,12 @@ export default function ModuleList() {
             </>
           )}
         </Button>
-        <button type="button" className="test-ai-btn" onClick={() => { navigate("/modules/new"); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: "Help me generate a new extension" } })), 300); }}>
+        <button type="button" className="test-ai-btn" onClick={() => { navigate("/modules/new"); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ai-builder", { detail: { prompt: "Help me generate a new function" } })), 300); }}>
           <i className="fas fa-magic" aria-hidden="true" /> Generate with AI
         </button>
         <Button type="primary" onClick={() => navigate("/modules/new")}>
           <i className="fas fa-plus" aria-hidden="true" />
-          <span>New Extension</span>
+          <span>New Function</span>
         </Button>
       </div>
 
@@ -423,9 +423,9 @@ export default function ModuleList() {
           <thead>
             <tr>
               <th className="module-table-th module-col-status"></th>
-              <th className="module-table-th module-col-name">Extension Name</th>
+              <th className="module-table-th module-col-name">Function Name</th>
               <th className="module-table-th module-col-scopes">
-                <SimpleTooltip title="Shows which pipeline positions this extension can run at, based on its parameter types">
+                <SimpleTooltip title="Shows which pipeline positions this function can run at, based on its parameter types">
                   <span>Available Scopes</span>
                 </SimpleTooltip>
               </th>
@@ -546,7 +546,7 @@ export default function ModuleList() {
                             ? "Running…"
                             : mod.enabled
                               ? `Run tests for ${mod.name}`
-                              : "Enable extension to run tests"
+                              : "Enable function to run tests"
                         }
                       >
                         {isRunning ? (
@@ -602,10 +602,10 @@ export default function ModuleList() {
       {modules.length === 0 && (
         <div className="module-empty-state">
           <i className="fas fa-code module-empty-icon" />
-          <p>No server-side extensions configured yet.</p>
+          <p>No enrichment functions configured yet.</p>
           <Button type="primary" onClick={() => navigate("/modules/new")}>
             <i className="fas fa-plus" aria-hidden="true" />
-            <span>Create Your First Extension</span>
+            <span>Create Your First Function</span>
           </Button>
         </div>
       )}

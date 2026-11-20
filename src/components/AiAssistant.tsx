@@ -188,7 +188,7 @@ export default function AiAssistant({
                   <i className="fas fa-wand-magic-sparkles" aria-hidden="true" />
                 </div>
                 <p className="llm-welcome-title">What should I build for you?</p>
-                <p className="llm-welcome-desc">I create extensions, configure instances, write tests, and wire up your entire setup. Use the actions above or describe what you need.</p>
+                <p className="llm-welcome-desc">I create functions, configure instances, write tests, and wire up your entire setup. Use the actions above or describe what you need.</p>
               </div>
             )}
             {messages.map((m, i) => (

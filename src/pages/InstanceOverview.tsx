@@ -563,7 +563,7 @@ function ExtensionPicker({ extensions, onSelect, onClose, hideBulk }: { extensio
 
   return (
     <div className="ov-ext-picker" ref={ref}>
-      <div className="ov-ext-picker-header">Select Extension</div>
+      <div className="ov-ext-picker-header">Select Function</div>
       {visibleExtensions.map((ext) => (
         <button key={ext.id} type="button" className="ov-ext-picker-item"
           onClick={() => { onSelect(ext); onClose(); }}>
@@ -1135,7 +1135,7 @@ export default function InstanceOverview() {
             <div className="ov-edit-mapping-modes">
               {([
                 { id: "bulk" as MappingMode, label: "Process all attributes of type", icon: "fas fa-cubes", desc: "Pick type(s) and scope. Add exclusions if needed." },
-                { id: "single-attribute" as MappingMode, label: "Attribute list", icon: "fas fa-list", desc: "Provide a list of attributes to apply the extension to." },
+                { id: "single-attribute" as MappingMode, label: "Attribute list", icon: "fas fa-list", desc: "Provide a list of attributes to apply the function to." },
               ]).map((opt) => (
                 <label key={opt.id} className={`ov-edit-mode-radio ${currentMode === opt.id ? "ov-edit-mode-radio-active" : ""}`}>
                   <input type="radio" name={`mapping-mode-${inst.id}`} value={opt.id} checked={currentMode === opt.id}
@@ -1222,7 +1222,7 @@ export default function InstanceOverview() {
         {/* Single-attribute mode panel */}
         {currentMode === "single-attribute" && (
           <div className="ov-edit-single-attr-panel">
-            <p className="ov-edit-single-attr-hint">The extension will run once per attribute listed below.</p>
+            <p className="ov-edit-single-attr-hint">The function will run once per attribute listed below.</p>
             <div className="ov-edit-single-attr-list">
               {(inst.attributeList || []).map((attr) => (
                 <span key={attr} className="inst-single-attr-tag"><code>{attr}</code>
@@ -1325,7 +1325,7 @@ export default function InstanceOverview() {
     <div className="ov-page">
       <nav className="editor-breadcrumb">
         <button type="button" className="breadcrumb-link" onClick={() => navigate("/")}>
-          Server-Side Extensions
+          Enrichment Functions
         </button>
         <span className="breadcrumb-separator">/</span>
         <span className="breadcrumb-current">Instances and Order</span>
@@ -1337,7 +1337,7 @@ export default function InstanceOverview() {
           <Badge type="informative" label={`${activeCount} active / ${totalCount} total`} />
         </div>
         <p className="ov-description">
-          All extension instances across the pipeline, grouped by execution timing.
+          All function instances across the pipeline, grouped by execution timing.
           Drag to reorder, click to expand and edit mappings, or add new instances.
         </p>
       </div>
@@ -1352,7 +1352,7 @@ export default function InstanceOverview() {
               onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
             >
               <i className="fas fa-filter" aria-hidden="true" />
-              {filterExtensions.size === 0 ? "All Extensions" : `${filterExtensions.size} selected`}
+              {filterExtensions.size === 0 ? "All Functions" : `${filterExtensions.size} selected`}
               <i className={`fas fa-chevron-${filterDropdownOpen ? "up" : "down"} ov-filter-trigger-arrow`} aria-hidden="true" />
             </button>
             {filterDropdownOpen && (
@@ -1409,7 +1409,7 @@ export default function InstanceOverview() {
               <th className="ov-th ov-col-status"></th>
               <th className="ov-th ov-col-order">#</th>
               <th className="ov-th ov-col-name">Instance</th>
-              <th className="ov-th ov-col-extension">Extension</th>
+              <th className="ov-th ov-col-extension">Function</th>
               <th className="ov-th ov-col-warnings">Warnings</th>
               <th className="ov-th ov-col-rule">Trigger Rule</th>
             </tr>
@@ -1506,7 +1506,7 @@ export default function InstanceOverview() {
                         {inst.extensionName}
                       </button>
                       {!inst.extensionEnabled && (
-                        <SimpleTooltip title="Parent extension is disabled">
+                        <SimpleTooltip title="Parent function is disabled">
                           <span className="ov-ext-disabled-badge"><i className="fas fa-ban" aria-hidden="true" /></span>
                         </SimpleTooltip>
                       )}
@@ -1555,7 +1555,7 @@ export default function InstanceOverview() {
         {filteredInstances.length === 0 && (
           <div className="ov-empty">
             <i className="fas fa-inbox" aria-hidden="true" />
-            <p>No instances {filterExtension !== "all" ? "for this extension" : "yet"}.</p>
+            <p>No instances {filterExtension !== "all" ? "for this function" : "yet"}.</p>
           </div>
         )}
       </div>

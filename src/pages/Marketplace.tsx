@@ -167,11 +167,11 @@ export default function Marketplace() {
           <span className="mkt-title-icon" aria-hidden="true">
             <i className="fas fa-shopping-bag" />
           </span>
-          <h1 className="mkt-title">Extension Marketplace</h1>
+          <h1 className="mkt-title">Function Marketplace</h1>
           <span className="mkt-count-badge">{addedCount} added</span>
         </div>
         <p className="mkt-description">
-          Browse ready-to-install extension capsules and add them to your active Extension
+          Browse ready-to-install function capsules and add them to your active Function
           Definitions. Capsules run alongside your existing attributes &mdash; each one is additive
           and opt-in. Added capsules start locked and read-only; unlock one to customize it, and
           every change is tracked against the published version.
@@ -183,7 +183,7 @@ export default function Marketplace() {
           <i className="fas fa-search" aria-hidden="true" />
           <input
             type="text"
-            placeholder="Search extensions, publishers…"
+            placeholder="Search functions, publishers…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search marketplace"
@@ -227,7 +227,7 @@ export default function Marketplace() {
       {filtered.length === 0 && (
         <div className="mkt-empty">
           <i className="fas fa-box-open" aria-hidden="true" />
-          <p>No extensions match your search.</p>
+          <p>No functions match your search.</p>
         </div>
       )}
 
