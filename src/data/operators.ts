@@ -160,16 +160,29 @@ export const MOCK_OPERATORS: OperatorDef[] = [
     enabled: true,
     lastModified: "2026-03-14",
   },
+  {
+    id: "op6",
+    label: "is valid business email",
+    negatedLabel: "is not a valid business email",
+    identifier: "isValidBusinessEmail",
+    description: "TRUE for a valid email address whose domain isn't a free webmail provider (gmail.com, yahoo.com, outlook.com, hotmail.com).",
+    subjectTypes: ["String"],
+    operands: [],
+    code: `  const match = /^[^\\s@]+@([^\\s@]+\\.[a-z]{2,})$/i.exec(subject.trim());
+  if (!match) return false;
+  const freeDomains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com"];
+  return !freeDomains.includes(match[1]);
+`,
+    tests: [
+      { id: "t1", name: "accepts a company address", subjectType: "String", subject: "jane@acme.com", operands: [], expected: true },
+      { id: "t2", name: "rejects a webmail address", subjectType: "String", subject: "jane@gmail.com", operands: [], expected: false },
+      { id: "t3", name: "rejects an invalid address", subjectType: "String", subject: "jane@", operands: [], expected: false },
+      { id: "t4", name: "rejects webmail in uppercase", subjectType: "String", subject: "jane@GMAIL.com", operands: [], expected: false },
+    ],
+    enabled: true,
+    lastModified: "2026-03-15",
+  },
 ];
-
-export const OPERATOR_USAGE: Record<string, OperatorUsage[]> = {
-  op4: [{ enrichment: "Add Search Term", attribute: "search_history", attributeId: "a21" }],
-  op3: [
-    { enrichment: "Set Loyalty Tier", attribute: "loyalty_tier", attributeId: "a14" },
-    { enrichment: "Set Win-Back Date", attribute: "winback_eligible_date", attributeId: "a26" },
-  ],
-  op5: [{ enrichment: "Set Holiday Purchase Date", attribute: "holiday_purchase_date", attributeId: "a25" }],
-};
 
 export function customOperatorValue(op: OperatorDef): string {
   return `${CUSTOM_OPERATOR_PREFIX}${op.id}`;

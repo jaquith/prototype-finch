@@ -8,7 +8,6 @@ import {
   IDENTIFIER_PATTERN,
   MOCK_OPERATORS,
   OPERAND_TYPES,
-  OPERATOR_USAGE,
   SUBJECT_TYPES,
   createBlankOperator,
   negatedOperatorLabel,
@@ -21,7 +20,42 @@ import {
   type TestValueType,
 } from "../data/operators";
 import { evaluateCase, operandNameErrors, type EvaluationResult } from "../utils/operatorRuntime";
+import { useAudiences } from "../data/audiences";
+import { audienceUsesOf, enrichmentUsesOf } from "../data/operatorUsage";
+import { useMvpMode } from "../contexts/MvpContext";
 import "./Operators.css";
+import "./Audiences.css";
+
+const USAGE_PREVIEW_LIMIT = 5;
+
+function UsageGroup<T>({
+  title,
+  icon,
+  items,
+  render,
+}: {
+  title: string;
+  icon: string;
+  items: T[];
+  render: (item: T) => React.ReactNode;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  if (items.length === 0) return null;
+  const visible = showAll ? items : items.slice(0, USAGE_PREVIEW_LIMIT);
+  return (
+    <div className="op-usage-group">
+      <h3 className="op-usage-group-title">
+        <i className={`fas ${icon}`} aria-hidden="true" /> {title} <span className="op-muted">({items.length})</span>
+      </h3>
+      <ul className="op-usage">{visible.map(render)}</ul>
+      {items.length > USAGE_PREVIEW_LIMIT && (
+        <button type="button" className="op-link" onClick={() => setShowAll((s) => !s)}>
+          {showAll ? "Show fewer" : `Show all ${items.length}`}
+        </button>
+      )}
+    </div>
+  );
+}
 
 const TEST_VALUE_TYPES: TestValueType[] = [...SUBJECT_TYPES, "Null"];
 
@@ -70,7 +104,16 @@ export default function OperatorEditor() {
   const [tryResult, setTryResult] = useState<EvaluationResult | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
-  const usage = OPERATOR_USAGE[draft.id] ?? [];
+  const { isMvp } = useMvpMode();
+  const audiences = useAudiences();
+  const usage = enrichmentUsesOf(draft.id);
+  const audienceUsage = isMvp ? [] : audienceUsesOf(draft.id, audiences);
+  const previewContexts = isMvp
+    ? [{ label: "In an enrichment condition", keyword: "WHEN" }]
+    : [
+        { label: "In an enrichment condition", keyword: "WHEN" },
+        { label: "In an audience condition", keyword: "WHERE" },
+      ];
   const nameErrors = operandNameErrors(draft.operands);
   const operandsValid = nameErrors.every((e) => e === null);
   const params = draft.operands.map((o) => o.name);
@@ -179,6 +222,7 @@ export default function OperatorEditor() {
             verbose
             enabled={draft.enabled}
             dependencies={usage}
+            audiences={audienceUsage}
             operatorName={draft.label ? plainLabel(draft.label, draft.operands) : "operator"}
             onChange={(next) => update("enabled", next)}
           />
@@ -193,10 +237,11 @@ export default function OperatorEditor() {
         {draft.label ? <OperatorSentence template={draft.label} operands={draft.operands} slotClassName="op-title-slot" /> : "New operator"}
       </h1>
 
-      <section className="op-preview" aria-label="How this operator reads in a condition">
-        <span className="op-preview-label">In an enrichment condition</span>
+      {previewContexts.map(({ label, keyword }) => (
+      <section key={label} className="op-preview" aria-label={`How this operator reads ${label.toLowerCase()}`}>
+        <span className="op-preview-label">{label}</span>
         <div className="op-preview-sentence">
-          <span className="op-preview-when">WHEN</span>
+          <span className="op-preview-when">{keyword}</span>
           <span className="op-preview-attr">{attrLabel}</span>
           <span className="op-preview-op">
             <span aria-hidden="true">ƒ</span>
@@ -208,7 +253,7 @@ export default function OperatorEditor() {
           <span className="op-result op-result-false">FALSE</span>
         </div>
         <div className="op-preview-sentence op-preview-negated">
-          <span className="op-preview-when">WHEN</span>
+          <span className="op-preview-when">{keyword}</span>
           <span className="op-preview-attr">{attrLabel}</span>
           <span className="op-preview-op op-preview-op-negated">
             <span className="op-not-badge">NOT</span>
@@ -219,6 +264,7 @@ export default function OperatorEditor() {
           <span className="op-muted">inverse result, generated automatically</span>
         </div>
       </section>
+      ))}
 
       <div className="op-editor-grid">
         <div className="op-editor-main">
@@ -488,22 +534,47 @@ export default function OperatorEditor() {
 
           <section className="op-card">
             <h2 className="op-card-title">Used by</h2>
-            {usage.length === 0 ? (
-              <p className="op-help">Not used in any enrichment conditions yet.</p>
+            {usage.length + audienceUsage.length === 0 ? (
+              <p className="op-help">
+                {isMvp ? "Not used in any enrichment conditions yet." : "Not used in any enrichment or audience conditions yet."}
+              </p>
             ) : (
-              <ul className="op-usage">
-                {usage.map((u) => (
-                  <li key={u.enrichment}>
-                    <i className="fas fa-magic" aria-hidden="true" />
-                    <div>
-                      <div className="op-usage-name">{u.enrichment}</div>
-                      <button type="button" className="op-link" onClick={() => navigate(`/attributes?attr=${u.attributeId}`)}>
-                        {u.attribute}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <UsageGroup
+                  title="Enrichments"
+                  icon="fa-magic"
+                  items={usage}
+                  render={(u) => (
+                    <li key={`${u.attributeId}-${u.enrichment}`}>
+                      <div>
+                        <div className="op-usage-name">{u.enrichment}</div>
+                        <button type="button" className="op-link" onClick={() => navigate(`/attributes?attr=${u.attributeId}`)}>
+                          {u.attribute}
+                        </button>
+                      </div>
+                    </li>
+                  )}
+                />
+                <UsageGroup
+                  title="Audiences"
+                  icon="fa-users"
+                  items={audienceUsage}
+                  render={(a) => (
+                    <li key={a.audienceId}>
+                      <div>
+                        <button type="button" className="op-link op-usage-name" onClick={() => navigate(`/audiences/${a.audienceId}`)}>
+                          {a.audience}
+                        </button>
+                        {a.needsAttention && (
+                          <div className="aud-attention">
+                            <i className="fas fa-exclamation-triangle" aria-hidden="true" /> Needs attention
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  )}
+                />
+              </>
             )}
           </section>
         </aside>

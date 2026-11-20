@@ -1,10 +1,12 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { OperatorUsage } from "../data/operators";
+import { describeUses, type AudienceUsage } from "../data/operatorUsage";
 
 interface OperatorActivationSwitchProps {
   enabled: boolean;
   dependencies: OperatorUsage[];
+  audiences?: AudienceUsage[];
   operatorName: string;
   onChange: (enabled: boolean) => void;
   /** Longer status wording for the editor; the list uses the compact form. */
@@ -14,6 +16,7 @@ interface OperatorActivationSwitchProps {
 export default function OperatorActivationSwitch({
   enabled,
   dependencies,
+  audiences = [],
   operatorName,
   onChange,
   verbose = false,
@@ -48,10 +51,10 @@ export default function OperatorActivationSwitch({
 
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 
-  const dependencyCount = dependencies.length;
+  const dependencyCount = dependencies.length + audiences.length;
   const locked = enabled && dependencyCount > 0;
   const dependencyText = `${dependencyCount} ${dependencyCount === 1 ? "dependency" : "dependencies"}`;
-  const lockReason = `Used by ${dependencyCount} ${dependencyCount === 1 ? "enrichment" : "enrichments"}. Remove it from those conditions before disabling.`;
+  const lockReason = `Used by ${describeUses(dependencies.length, audiences.length)}. Remove it from those conditions before disabling.`;
 
   let status: string;
   if (!enabled) status = verbose ? "Disabled" : "Off";
@@ -118,6 +121,15 @@ export default function OperatorActivationSwitch({
                     <i className="fas fa-magic" aria-hidden="true" />
                     <span className="op-deps-enrichment">{d.enrichment}</span>
                     <span className="op-deps-attr">{d.attribute}</span>
+                  </button>
+                </li>
+              ))}
+              {audiences.map((a) => (
+                <li key={a.audienceId}>
+                  <button type="button" className="op-deps-item" onClick={() => navigate(`/audiences/${a.audienceId}`)}>
+                    <i className="fas fa-users" aria-hidden="true" />
+                    <span className="op-deps-enrichment">{a.audience}</span>
+                    <span className="op-deps-attr">Audience</span>
                   </button>
                 </li>
               ))}

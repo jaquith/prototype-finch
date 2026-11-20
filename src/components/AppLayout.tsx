@@ -26,14 +26,25 @@ export default function AppLayout() {
     setMode(next);
     if (next !== "marketplace" && location.pathname === "/marketplace") navigate("/extensions");
   };
-  const [activeTab, setActiveTab] = useState("modules");  // nav id unchanged
+  const [selectedTab, setSelectedTab] = useState("modules");  // nav id unchanged
+  const path = location.pathname;
+  const activeTab =
+    !isMvp && path.startsWith("/audiences")
+      ? "audiences"
+      : path.startsWith("/attributes")
+        ? "attributes"
+        : selectedTab === "audiences" && !isMvp
+          ? "modules"
+          : selectedTab;
 
   const handleTabClick = (id: string) => {
-    setActiveTab(id);
+    setSelectedTab(id);
     if (id === "modules") {
       navigate(isMvp ? "/extensions" : "/");
     } else if (id === "attributes") {
       navigate("/attributes");
+    } else if (id === "audiences" && !isMvp) {
+      navigate("/audiences");
     }
   };
 

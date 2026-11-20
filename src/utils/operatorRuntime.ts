@@ -3,6 +3,7 @@ import {
   RESERVED_OPERAND_NAMES,
   type OperandDef,
   type OperandType,
+  type OperatorDef,
   type TestValueType,
 } from "../data/operators";
 
@@ -111,6 +112,20 @@ export function evaluateCase(
     operands.map((o) => o.name),
     values,
   );
+}
+
+export interface TestSummary {
+  passed: number;
+  total: number;
+  failing: number;
+}
+
+export function operatorTestSummary(op: Pick<OperatorDef, "code" | "operands" | "tests">): TestSummary {
+  const passed = op.tests.filter((t) => {
+    const r = evaluateCase(op.code, op.operands, t.subject, t.subjectType, t.operands);
+    return r.ok && r.value === t.expected;
+  }).length;
+  return { passed, total: op.tests.length, failing: op.tests.length - passed };
 }
 
 /** Problems that would stop the function from compiling with these operand names. */

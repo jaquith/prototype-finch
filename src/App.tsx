@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import UIKitProvider from "./css/UIKitProvider";
 import { MvpProvider, useMvpMode } from "./contexts/MvpContext";
@@ -11,7 +12,14 @@ import InstanceOverview from "./pages/InstanceOverview";
 import OperatorList from "./pages/OperatorList";
 import OperatorEditor from "./pages/OperatorEditor";
 import Marketplace from "./pages/Marketplace";
+import AudienceList from "./pages/AudienceList";
+import AudienceEditor from "./pages/AudienceEditor";
 import { MarketplaceProvider } from "./contexts/MarketplaceContext";
+
+function AudiencesRoute({ children }: { children: ReactNode }) {
+  const { isMvp } = useMvpMode();
+  return isMvp ? <Navigate to="/extensions" replace /> : <>{children}</>;
+}
 
 function IndexRoute() {
   const { isMvp } = useMvpMode();
@@ -63,6 +71,22 @@ const router = createBrowserRouter([
       {
         path: "operators/:id",
         element: <OperatorEditor />,
+      },
+      {
+        path: "audiences",
+        element: (
+          <AudiencesRoute>
+            <AudienceList />
+          </AudiencesRoute>
+        ),
+      },
+      {
+        path: "audiences/:id",
+        element: (
+          <AudiencesRoute>
+            <AudienceEditor />
+          </AudiencesRoute>
+        ),
       },
     ],
   },

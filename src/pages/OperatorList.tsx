@@ -1,30 +1,28 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/SimpleButton";
-import { MOCK_OPERATORS, OPERATOR_USAGE, plainLabel } from "../data/operators";
+import { MOCK_OPERATORS, plainLabel } from "../data/operators";
 import OperatorSentence from "../components/OperatorSentence";
 import OperatorActivationSwitch from "../components/OperatorActivationSwitch";
-import { evaluateCase } from "../utils/operatorRuntime";
+import { operatorTestSummary } from "../utils/operatorRuntime";
+import { useAudiences } from "../data/audiences";
+import { audienceUsesOf, enrichmentUsesOf } from "../data/operatorUsage";
+import { useMvpMode } from "../contexts/MvpContext";
 import "./ModuleList.css";
 import "./Operators.css";
 
-function countPassing(opId: string): { passed: number; total: number } {
-  const op = MOCK_OPERATORS.find((o) => o.id === opId)!;
-  const passed = op.tests.filter((t) => {
-    const r = evaluateCase(op.code, op.operands, t.subject, t.subjectType, t.operands);
-    return r.ok && r.value === t.expected;
-  }).length;
-  return { passed, total: op.tests.length };
-}
-
 export default function OperatorList() {
   const navigate = useNavigate();
+  const { isMvp } = useMvpMode();
+  const audiences = useAudiences();
   const [enabled, setEnabled] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(MOCK_OPERATORS.map((o) => [o.id, o.enabled])),
   );
 
+  const audienceUses = (id: string) => (isMvp ? [] : audienceUsesOf(id, audiences));
+
   const toggle = (id: string) => {
-    if (enabled[id] && (OPERATOR_USAGE[id]?.length ?? 0) > 0) return;
+    if (enabled[id] && enrichmentUsesOf(id).length + audienceUses(id).length > 0) return;
     setEnabled((prev) => {
       const next = { ...prev, [id]: !prev[id] };
       const op = MOCK_OPERATORS.find((o) => o.id === id);
@@ -42,7 +40,7 @@ export default function OperatorList() {
         <p className="module-list-description">
           Function-based operators always evaluate to <strong>TRUE</strong> or <strong>FALSE</strong>. Once enabled,
           they appear next to built-in operators like <em>equals</em> and <em>contains</em> when you build the conditions
-          of an enrichment.
+          {isMvp ? "of an enrichment." : "of an enrichment or an audience."}
         </p>
       </header>
 
@@ -65,8 +63,8 @@ export default function OperatorList() {
           </thead>
           <tbody>
             {MOCK_OPERATORS.map((op) => {
-              const { passed, total } = countPassing(op.id);
-              const usage = OPERATOR_USAGE[op.id] ?? [];
+              const { passed, total } = operatorTestSummary(op);
+              const usage = enrichmentUsesOf(op.id);
               return (
                 <tr key={op.id} className="module-table-row op-row" onClick={() => navigate(`/operators/${op.id}`)}>
                   <td className="module-table-td">
@@ -104,6 +102,7 @@ export default function OperatorList() {
                     <OperatorActivationSwitch
                       enabled={enabled[op.id]}
                       dependencies={usage}
+                      audiences={audienceUses(op.id)}
                       operatorName={plainLabel(op.label, op.operands)}
                       onChange={() => toggle(op.id)}
                     />
